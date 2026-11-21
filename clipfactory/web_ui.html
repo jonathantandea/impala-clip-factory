@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip Factory</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1c1a; --muted: #6d6a64; --line: #e4e1da;
+    --accent: #e8572a; --accent-ink: #ffffff; --ok: #2f8f5b; --warn: #b7791f; --bad: #c0392b;
+    --code: #f0eee9; --radius: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151413; --panel: #1f1e1c; --ink: #edebe6; --muted: #a29e96; --line: #33312d;
+      --accent: #ff7043; --code: #282624; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--line);
+    background: var(--panel); position: sticky; top: 0; z-index: 5; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+  header h1 span { color: var(--accent); }
+  .pills { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .pill { white-space: nowrap; line-height: 1.6; font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.on { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  main { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); padding: 16px; } header { padding: 12px 16px; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+    color: var(--ink); font: inherit; }
+  textarea { font-family: ui-monospace, Menlo, monospace; font-size: 12px; min-height: 90px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > * { flex: 1; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 8px 0; color: var(--ink); font-size: 14px; }
+  .check input { width: 16px; height: 16px; accent-color: var(--accent); }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel);
+    color: var(--ink); cursor: pointer; white-space: nowrap; }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .full { width: 100%; margin-top: 14px; padding: 11px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .hidden { display: none !important; }
+  #log { background: var(--code); border-radius: 8px; padding: 10px; font: 12px/1.45 ui-monospace, Menlo, monospace;
+    max-height: 220px; overflow: auto; white-space: pre-wrap; margin-top: 10px; }
+  .status { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.run { background: var(--warn); animation: pulse 1.2s infinite; }
+  .dot.ok { background: var(--ok); } .dot.bad { background: var(--bad); }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .error { color: var(--bad); font-size: 14px; margin-top: 8px; }
+  .projects { list-style: none; padding: 0; margin: 0; }
+  .projects li { padding: 10px 12px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .projects li:hover { background: var(--bg); }
+  .projects li.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .projects b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .toolbar h2 { margin: 0 auto 0 0; font-size: 18px; overflow-wrap: anywhere; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .clip { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+    display: flex; flex-direction: column; }
+  .clip.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .clip img { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: var(--code); display: block; }
+  .clip video { width: 100%; max-height: 460px; background: #000; display: block; }
+  .clip .body { padding: 12px 14px; flex: 1; }
+  .clip h3 { margin: 0 0 4px; font-size: 15px; }
+  .meta { display: flex; gap: 10px; font-size: 12px; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap; }
+  .score { color: var(--accent); font-weight: 700; }
+  .hook { font-weight: 600; font-size: 13px; }
+  .clip .foot { display: flex; gap: 8px; padding: 0 14px 14px; align-items: center; }
+  .clip .foot a { font-size: 13px; color: var(--accent); margin-left: auto; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+  .empty { text-align: center; padding: 50px 20px; color: var(--muted); }
+  details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Clip <span>Factory</span></h1>
+  <div class="pills">
+    <span class="pill" id="pill-ollama">Ollama: cek…</span>
+    <span class="pill" id="pill-kamus">kamus.txt</span>
+    <button id="btn-open-out" title="Buka folder out di Finder">Buka folder out</button>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <section class="card">
+      <h2>1 · Video baru</h2>
+      <label for="video">Video (10–30 menit paling pas)</label>
+      <div class="row">
+        <input type="text" id="video" placeholder="/Users/kamu/Movies/vod.mp4">
+        <button id="btn-choose" style="flex:0">Pilih…</button>
+      </div>
+      <p class="muted" style="margin:6px 0 0">Klik Pilih…, atau tempel path. Bisa juga seret file dari Finder ke kotak ini.</p>
+
+      <div class="row">
+        <div><label for="model">Whisper</label>
+          <select id="model">
+            <option value="tiny">tiny (paling cepat)</option>
+            <option value="base" selected>base (disarankan)</option>
+            <option value="small">small (lebih akurat)</option>
+            <option value="medium">medium (lambat)</option>
+          </select></div>
+        <div><label for="lang">Bahasa</label>
+          <select id="lang"><option value="id">Indonesia</option><option value="en">English</option><option value="">Auto</option></select></div>
+      </div>
+
+      <label for="prompt">Nama/istilah yang sering muncul (opsional)</label>
+      <input type="text" id="prompt" placeholder="Impala, Valorant, Jonathan">
+
+      <div class="row">
+        <div><label for="top">Jumlah kandidat</label><input type="number" id="top" value="8" min="1" max="30"></div>
+        <div><label for="rtop">Langsung render</label><input type="number" id="rtop" value="2" min="0" max="30"></div>
+      </div>
+      <div class="row">
+        <div><label for="minlen">Min detik</label><input type="number" id="minlen" value="20" min="5"></div>
+        <div><label for="maxlen">Maks detik</label><input type="number" id="maxlen" value="60" min="10"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="llm"> Pilih momen dengan Ollama</label>
+      <p class="muted" id="llm-note" style="margin:0">Tanpa Ollama: pakai heuristik, lalu kirim transcript.json ke Claude.</p>
+      <button class="primary full" id="btn-scan">Mulai scan</button>
+    </section>
+
+    <section class="card">
+      <h2>2 · Gaya render</h2>
+      <label for="layout">Layout</label>
+      <select id="layout">
+        <option value="blur">Blur: video utuh, latar blur</option>
+        <option value="crop">Crop: potong tengah, penuh</option>
+        <option value="facecam">Facecam di atas, gameplay di bawah</option>
+      </select>
+      <div id="facecam-box" class="hidden">
+        <label for="facecam">Posisi facecam di video asli: x,y,lebar,tinggi (piksel)</label>
+        <input type="text" id="facecam" placeholder="1440,700,480,380">
+      </div>
+      <label class="check"><input type="checkbox" id="captions" checked> Caption otomatis</label>
+      <label class="check"><input type="checkbox" id="hook" checked> Teks hook 3 detik pertama</label>
+    </section>
+
+    <section class="card">
+      <h2>Project</h2>
+      <ul class="projects" id="projects"><li class="muted">Belum ada.</li></ul>
+    </section>
+  </aside>
+
+  <section>
+    <div class="card" id="job-card">
+      <div class="status"><span class="dot" id="job-dot"></span><span id="job-title">Siap</span>
+        <span class="muted" id="job-time" style="margin-left:auto;font-weight:400"></span></div>
+      <div id="job-error" class="error hidden"></div>
+      <div id="log" class="hidden"></div>
+    </div>
+
+    <div id="detail">
+      <div class="card empty">Pilih video di kiri lalu klik <b>Mulai scan</b>.<br>Hasilnya muncul di sini.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let current = null, selected = new Set(), lastRunning = false, projectCache = null;
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify(body) } : {});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function renderOpts() {
+  return { layout: $("layout").value, facecam: $("facecam").value,
+           captions: $("captions").checked, hook: $("hook").checked };
+}
+
+// ---------- status
+async function loadStatus() {
+  const s = await api("/api/status");
+  const p = $("pill-ollama");
+  p.textContent = s.ollama ? "Ollama: aktif" : "Ollama: mati";
+  p.classList.toggle("on", s.ollama);
+  $("llm").disabled = !s.ollama; $("llm").checked = s.ollama;
+  $("llm-note").textContent = s.ollama ? "Ollama terdeteksi; momen dipilih oleh LLM lokal."
+    : "Ollama tidak ada: pakai heuristik, lalu kirim transcript.json ke Claude.";
+  $("pill-kamus").classList.toggle("on", s.kamus);
+  $("pill-kamus").textContent = s.kamus ? "kamus.txt: aktif" : "kamus.txt: tidak ada";
+  $("btn-choose").classList.toggle("hidden", !s.mac);
+}
+
+// ---------- projects
+async function loadProjects() {
+  const list = await api("/api/projects");
+  const ul = $("projects");
+  if (!list.length) { ul.innerHTML = '<li class="muted">Belum ada.</li>'; return; }
+  ul.innerHTML = list.map((p) => `<li data-name="${esc(p.name)}" class="${p.name === current ? "active" : ""}">
+      <b>${esc(p.name)}</b><span class="muted">${p.clips} kandidat · ${p.rendered} dirender · ${esc(p.updated)}</span></li>`).join("");
+  ul.querySelectorAll("li[data-name]").forEach((li) => li.onclick = () => openProject(li.dataset.name));
+}
+
+async function openProject(name, keepSel) {
+  current = name;
+  if (!keepSel) selected = new Set();
+  const p = await api(`/api/project/${encodeURIComponent(name)}`);
+  projectCache = p;
+  document.querySelectorAll(".projects li").forEach((li) => li.classList.toggle("active", li.dataset.name === name));
+  drawProject(p);
+}
+
+function drawProject(p) {
+  const clips = p.clips || [];
+  const cards = clips.map((c) => `
+    <article class="clip ${selected.has(c.id) ? "sel" : ""}" data-id="${c.id}">
+      ${c.rendered ? `<video src="${esc(c.mp4)}?t=${Date.now()}" controls preload="metadata" playsinline></video>`
+                   : `<img loading="lazy" src="/api/thumb/${encodeURIComponent(p.name)}/${c.id}.jpg" alt="">`}
+      <div class="body">
+        <div class="meta"><span>#${c.id}</span><span>${esc(c.range)}</span><span>${c.length} dtk</span>
+          <span class="score">skor ${c.score}</span>${c.rendered ? '<span class="badge">dirender</span>' : ""}</div>
+        <h3>${esc(c.title || "(tanpa judul)")}</h3>
+        ${c.hook ? `<div class="hook">“${esc(c.hook)}”</div>` : ""}
+        ${c.reason ? `<div class="muted">${esc(c.reason)}</div>` : ""}
+      </div>
+      <div class="foot">
+        <label class="check" style="margin:0"><input type="checkbox" class="pick" ${selected.has(c.id) ? "checked" : ""}> pilih</label>
+        <button class="one">${c.rendered ? "Render ulang" : "Render"}</button>
+        ${c.rendered ? `<a href="${esc(c.mp4)}" download>Unduh</a>` : ""}
+      </div>
+    </article>`).join("");
+  $("detail").innerHTML = `
+    <div class="card">
+      <div class="toolbar">
+        <h2>${esc(p.name)}</h2>
+        <button id="btn-render-sel" class="primary" ${selected.size ? "" : "disabled"}>Render terpilih (${selected.size})</button>
+        <button id="btn-render-all" ${clips.length ? "" : "disabled"}>Render semua</button>
+        <button id="btn-open-proj">Buka folder</button>
+      </div>
+      <div class="stats muted">${(p.stats || []).map((s) => `<span>${esc(s.replace(/`/g, ""))}</span>`).join("")}</div>
+      ${clips.length ? `<div class="grid">${cards}</div>` : '<div class="empty">Belum ada kandidat.</div>'}
+    </div>
+    <div class="card">
+      <details>
+        <summary>Pakai pilihan momen dari Claude</summary>
+        <p class="muted">Kirim <code>out/${esc(p.name)}/transcript.json</code> ke Claude. Tempel JSON balasannya di sini, simpan, lalu render.</p>
+        <textarea id="import-json" placeholder='{"clips":[{"start":125.4,"end":168.0,"title":"...","hook":"...","reason":"...","score":9}]}'></textarea>
+        <div class="row" style="margin-top:8px"><button id="btn-import" style="flex:0">Simpan kandidat</button>
+          <span id="import-msg" class="muted"></span></div>
+      </details>
+    </div>`;
+  document.querySelectorAll(".clip").forEach((el) => {
+    const id = Number(el.dataset.id);
+    el.querySelector(".pick").onchange = (e) => {
+      e.target.checked ? selected.add(id) : selected.delete(id);
+      el.classList.toggle("sel", e.target.checked);
+      const b = $("btn-render-sel"); b.disabled = !selected.size; b.textContent = `Render terpilih (${selected.size})`;
+    };
+    el.querySelector(".one").onclick = () => startRender([id]);
+  });
+  $("btn-render-sel").onclick = () => startRender([...selected]);
+  $("btn-render-all").onclick = () => startRender([]);
+  $("btn-open-proj").onclick = () => api("/api/open", { project: p.name });
+  $("btn-import").onclick = async () => {
+    try {
+      const r = await api("/api/import", { project: p.name, json: $("import-json").value });
+      await openProject(p.name); loadProjects();
+      showInfo(`${r.count} kandidat dari Claude disimpan. Klik Render semua atau pilih yang mau dirender.`);
+    } catch (e) { $("import-msg").textContent = "Gagal: " + e.message; }
+  };
+}
+
+// ---------- actions
+async function startRender(ids) {
+  if (!current) return;
+  try { await api("/api/render", { project: current, ids, ...renderOpts() }); pollSoon(); }
+  catch (e) { showError(e.message); }
+}
+
+$("btn-scan").onclick = async () => {
+  try {
+    const r = await api("/api/scan", {
+      video: $("video").value, whisper_model: $("model").value, lang: $("lang").value, prompt: $("prompt").value,
+      top: $("top").value, render_top: $("rtop").value, min_len: $("minlen").value, max_len: $("maxlen").value,
+      use_llm: $("llm").checked, ...renderOpts() });
+    current = r.project; pollSoon();
+  } catch (e) { showError(e.message); }
+};
+$("btn-choose").onclick = async () => {
+  $("btn-choose").disabled = true;
+  try { const r = await api("/api/choose-file", {}); if (r.path) $("video").value = r.path; }
+  catch (e) { showError(e.message); }
+  $("btn-choose").disabled = false;
+};
+$("btn-open-out").onclick = () => api("/api/open", {});
+$("layout").onchange = () => $("facecam-box").classList.toggle("hidden", $("layout").value !== "facecam");
+const v = $("video");
+v.addEventListener("dragover", (e) => e.preventDefault());
+v.addEventListener("drop", (e) => {
+  e.preventDefault();
+  const t = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain");
+  if (t) v.value = t.trim();
+  else if (e.dataTransfer.files.length) showError("Browser tidak memberi path file ini. Pakai tombol Pilih… atau tempel path.");
+});
+
+function showInfo(msg) { $("job-dot").className = "dot ok"; $("job-title").textContent = msg; $("job-error").classList.add("hidden"); }
+function showError(msg) { const el = $("job-error"); el.textContent = msg; el.classList.remove("hidden"); }
+
+// ---------- job polling
+let pollTimer = null;
+function pollSoon() { clearTimeout(pollTimer); pollTimer = setTimeout(poll, 200); }
+async function poll() {
+  let j;
+  try { j = await api("/api/job"); } catch { pollTimer = setTimeout(poll, 3000); return; }
+  const dot = $("job-dot"), log = $("log");
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  if (j.running) {
+    dot.className = "dot run";
+    $("job-title").textContent = j.kind === "scan" ? `Scan ${j.project}…` : `Render ${j.project}…`;
+    $("job-time").textContent = fmt(j.elapsed);
+    $("job-error").classList.add("hidden");
+    $("btn-scan").disabled = true;
+  } else {
+    $("btn-scan").disabled = false;
+    if (j.kind) {
+      dot.className = j.error ? "dot bad" : "dot ok";
+      $("job-title").textContent = j.error ? "Gagal" : (j.kind === "scan" ? "Scan selesai" : "Render selesai");
+      $("job-time").textContent = fmt(j.elapsed);
+      if (j.error) showError(j.error);
+    }
+  }
+  if (j.log.length) {
+    log.classList.remove("hidden");
+    const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 30;
+    log.textContent = j.log.join("\n");
+    if (atBottom) log.scrollTop = log.scrollHeight;
+  }
+  if (lastRunning && !j.running) {          // a job just finished
+    await loadProjects();
+    if (j.project) await openProject(j.project, true);
+  }
+  lastRunning = j.running;
+  pollTimer = setTimeout(poll, j.running ? 1500 : 5000);
+}
+
+loadStatus().catch(() => {});
+loadProjects().then(() => {
+  const first = document.querySelector(".projects li[data-name]");
+  if (first) openProject(first.dataset.name);
+}).catch(() => {});
+poll();
+</script>
+</body>
+</html>

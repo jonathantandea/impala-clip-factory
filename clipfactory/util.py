@@ -9,8 +9,13 @@ import time
 from pathlib import Path
 
 
+LOG_SINKS: list = []  # extra listeners (the web UI collects log lines here)
+
+
 def log(msg: str) -> None:
     print(f"[clipfactory] {msg}", file=sys.stderr, flush=True)
+    for sink in LOG_SINKS:
+        sink(msg)
 
 
 def need(binary: str) -> None:

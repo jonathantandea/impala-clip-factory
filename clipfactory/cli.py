@@ -123,7 +123,7 @@ def cmd_render(a) -> None:
     write_json(out / "candidates.json", data)
 
 
-def main(argv=None) -> None:
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="clipfactory", description="Pilih dan render clip vertikal dari video panjang.")
     p.add_argument("--version", action="version", version=__version__)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -162,7 +162,15 @@ def main(argv=None) -> None:
     render_opts(r)
     r.set_defaults(fn=cmd_render)
 
-    a = p.parse_args(argv)
+    w = sub.add_parser("web", help="buka tampilan web di http://localhost:8765")
+    w.add_argument("--port", type=int, default=8765)
+    w.add_argument("--no-browser", action="store_true", help="jangan buka browser otomatis")
+    w.set_defaults(fn=lambda a: __import__("clipfactory.web", fromlist=["serve"]).serve(a.port, not a.no_browser))
+    return p
+
+
+def main(argv=None) -> None:
+    a = build_parser().parse_args(argv)
     a.fn(a)
 
 

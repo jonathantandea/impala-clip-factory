@@ -156,15 +156,19 @@ else
 fi
 rm -rf "$T"
 
+# Double-click launcher on the Desktop.
+if [ -f "$APP/clipfactory.command" ]; then
+  cp -f "$APP/clipfactory.command" "$HOME/Desktop/Clip Factory.command" 2>/dev/null \
+    && chmod +x "$HOME/Desktop/Clip Factory.command" && ok "ikon 'Clip Factory' dibuat di Desktop"
+fi
+
 cat <<EOF
 
 $(printf '\033[1;32m')SELESAI. Clip Factory siap dipakai.$(printf '\033[0m')
 
-Setiap kali mau pakai, buka Terminal baru lalu:
-  cd ~/impala-clip-factory && source .venv/bin/activate
+Cara pakai: double-click 'Clip Factory' di Desktop.
+Browser terbuka di http://localhost:8765. Biarkan jendela Terminal-nya tetap terbuka.
 
-Tes pertama (ganti path video-mu; seret file video ke Terminal untuk path otomatis):
-  python -m clipfactory scan ~/Movies/vod.mp4 --whisper-model base --no-llm --captions --hook --render-top 2
-
-Lalu kirim ke Claude: out/<nama video>/transcript.json, candidates.md, candidates.jpg
+Atau lewat Terminal:
+  cd ~/impala-clip-factory && source .venv/bin/activate && python -m clipfactory web
 EOF

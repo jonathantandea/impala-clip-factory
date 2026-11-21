@@ -14,7 +14,17 @@ Script memasang ffmpeg, Python 3.12, Whisper, lalu tes render kecil. Aman dijala
 
 Ollama butuh macOS 14+. Di Mac yang lebih lama, pakai `--no-llm` lalu kirim `transcript.json` ke Claude untuk dipilihkan momennya; Claude mengirim balik `candidates.json` yang tinggal di-`render`.
 
-## Pemakaian
+## Pemakaian: tampilan web (paling gampang)
+
+Double-click **Clip Factory** di Desktop (dibuat oleh `setup_mac.sh`), atau:
+
+```bash
+cd ~/impala-clip-factory && source .venv/bin/activate && python -m clipfactory web
+```
+
+Browser terbuka di http://localhost:8765. Pilih video, klik **Mulai scan**, lalu tonton, pilih dan render clip langsung di halaman itu. Hanya bisa dibuka dari Mac ini sendiri.
+
+## Pemakaian lewat Terminal
 
 Setiap buka Terminal baru: `cd impala-clip-factory && source .venv/bin/activate`.
 
