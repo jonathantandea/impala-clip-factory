@@ -18,9 +18,9 @@ import traceback
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
-from .util import LOG_SINKS, log, mmss, read_json, run, write_json
+from .util import LOG_SINKS, log, mmss, probe_duration, probe_size, read_json, run, write_json
 
 OUT = Path("out").resolve()
 STATIC = Path(__file__).with_name("web_ui.html")
@@ -191,6 +191,26 @@ def choose_file_mac() -> str:
     return proc.stdout.strip()
 
 
+def resolve_video(q: dict) -> Path:
+    """Video from ?project=NAME (its scanned video) or ?video=PATH (not scanned yet)."""
+    if q.get("project"):
+        d = project_dir(q["project"][0])
+        if (d / "candidates.json").exists():
+            return Path(read_json(d / "candidates.json")["video"])
+    if q.get("video"):
+        return Path(clean_path(q["video"][0]))
+    raise ValueError("pilih video dulu")
+
+
+def video_frame(video: Path, t: float) -> bytes:
+    proc = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t):.2f}", "-i", str(video),
+                           "-frames:v", "1", "-vf", "scale=960:-2", "-q:v", "4", "-f", "image2", "-c:v", "mjpeg",
+                           "pipe:1"], capture_output=True)
+    if proc.returncode != 0 or not proc.stdout:
+        raise ValueError("tidak bisa ambil gambar dari video")
+    return proc.stdout
+
+
 def ollama_status() -> bool:
     from .picker import ollama_ok
     return ollama_ok("http://localhost:11434")
@@ -296,6 +316,21 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if not parts:
                 return self._file(STATIC, "text/html; charset=utf-8")
+            q = parse_qs(url.query)
+            if parts == ["api", "probe"]:
+                v = resolve_video(q)
+                if not v.is_file():
+                    raise ValueError(f"video tidak ditemukan: {v}")
+                w, h = probe_size(v)
+                return self._json({"video": str(v), "width": w, "height": h, "duration": probe_duration(v)})
+            if parts == ["api", "frame"]:
+                body = video_frame(resolve_video(q), float(q.get("t", ["60"])[0]))
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return None
             if parts == ["api", "status"]:
                 return self._json({"ollama": ollama_status(), "mac": sys.platform == "darwin",
                                    "out": str(OUT), "kamus": Path("kamus.txt").exists()})

@@ -76,6 +76,15 @@
   .clip .foot a { font-size: 13px; color: var(--accent); margin-left: auto; }
   .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
   .empty { text-align: center; padding: 50px 20px; color: var(--muted); }
+  .corners { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+  .corners button { font-size: 13px; padding: 6px 8px; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center;
+    z-index: 20; padding: 16px; }
+  .modal-box { background: var(--panel); border-radius: var(--radius); padding: 18px; width: min(1000px, 100%); max-height: 100%; overflow: auto; }
+  .stage { position: relative; user-select: none; touch-action: none; cursor: crosshair; background: #000; border-radius: 8px; overflow: hidden; }
+  .stage img { width: 100%; display: block; min-height: 120px; }
+  .rect { position: absolute; border: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 20%, transparent);
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.35); pointer-events: none; }
   details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 </style>
 </head>
@@ -137,8 +146,14 @@
         <option value="facecam">Facecam di atas, gameplay di bawah</option>
       </select>
       <div id="facecam-box" class="hidden">
-        <label for="facecam">Posisi facecam di video asli: x,y,lebar,tinggi (piksel)</label>
-        <input type="text" id="facecam" placeholder="1440,700,480,380">
+        <p class="muted" style="margin:8px 0 6px">Di mana facecam di video aslinya? Hasilnya facecam selalu di atas.</p>
+        <button class="full" id="btn-mark" style="margin-top:0">Tandai facecam di gambar…</button>
+        <div class="corners">
+          <button data-corner="tl">↖ Kiri atas</button><button data-corner="tr">Kanan atas ↗</button>
+          <button data-corner="bl">↙ Kiri bawah</button><button data-corner="br">Kanan bawah ↘</button>
+        </div>
+        <label for="facecam">Posisi (x,y,lebar,tinggi dalam piksel; terisi otomatis)</label>
+        <input type="text" id="facecam" placeholder="1440,810,480,270">
       </div>
       <label class="check"><input type="checkbox" id="captions" checked> Caption otomatis</label>
       <label class="check"><input type="checkbox" id="hook" checked> Teks hook 3 detik pertama</label>
@@ -163,6 +178,17 @@
     </div>
   </section>
 </main>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-box">
+    <div class="toolbar"><h2 id="modal-title" style="font-size:16px">Tarik kotak di sekitar facecam</h2>
+      <button id="m-cancel">Batal</button><button id="m-save" class="primary" disabled>Simpan</button></div>
+    <div class="stage" id="stage"><img id="m-img" alt="frame video" draggable="false"><div id="m-rect" class="rect hidden"></div></div>
+    <label for="m-time">Geser kalau facecam tidak kelihatan di gambar ini: <span id="m-tlabel"></span></label>
+    <input type="range" id="m-time" min="0" max="100" value="10" style="width:100%">
+    <p class="muted" id="m-info" style="margin:6px 0 0"></p>
+  </div>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -298,7 +324,84 @@ $("btn-choose").onclick = async () => {
   $("btn-choose").disabled = false;
 };
 $("btn-open-out").onclick = () => api("/api/open", {});
-$("layout").onchange = () => $("facecam-box").classList.toggle("hidden", $("layout").value !== "facecam");
+$("layout").onchange = () => {
+  $("facecam-box").classList.toggle("hidden", $("layout").value !== "facecam");
+  try { localStorage.setItem("cf-layout", $("layout").value); } catch {}
+};
+$("facecam").onchange = () => { try { localStorage.setItem("cf-facecam", $("facecam").value); } catch {} };
+try {
+  const l = localStorage.getItem("cf-layout"), f = localStorage.getItem("cf-facecam");
+  if (l) { $("layout").value = l; $("facecam-box").classList.toggle("hidden", l !== "facecam"); }
+  if (f) $("facecam").value = f;
+} catch {}
+
+// ---------- facecam marker
+function videoQuery() {
+  const v = $("video").value.trim();
+  if (v) return "video=" + encodeURIComponent(v);
+  if (current) return "project=" + encodeURIComponent(current);
+  throw new Error("Pilih video dulu (kotak Video, atau klik project di kiri).");
+}
+function setFacecam(x, y, w, h) {
+  $("facecam").value = [x, y, w, h].map((n) => Math.max(0, Math.round(n))).join(",");
+  $("facecam").onchange();
+}
+document.querySelectorAll(".corners button").forEach((b) => b.onclick = async () => {
+  try {
+    const m = await api("/api/probe?" + videoQuery());
+    const w = Math.round(m.width * 0.25), h = Math.round(m.height * 0.25);
+    const c = b.dataset.corner;
+    setFacecam(c[1] === "r" ? m.width - w : 0, c[0] === "b" ? m.height - h : 0, w, h);
+    showInfo(`Facecam diset ke ${b.textContent.trim()} (${$("facecam").value}). Kurang pas? Pakai Tandai facecam di gambar.`);
+  } catch (e) { showError(e.message); }
+});
+
+let meta = null, drag = null, box = null;
+$("btn-mark").onclick = async () => {
+  try {
+    const q = videoQuery();
+    meta = await api("/api/probe?" + q);
+    meta.q = q;
+    $("m-time").max = Math.max(1, Math.floor(meta.duration));
+    $("m-time").value = Math.min(60, Math.floor(meta.duration / 4));
+    box = null; $("m-rect").classList.add("hidden"); $("m-save").disabled = true;
+    $("m-info").textContent = `Video ${meta.width}×${meta.height}. Klik dan tarik dari satu pojok facecam ke pojok seberangnya.`;
+    loadFrame();
+    $("modal").classList.remove("hidden");
+  } catch (e) { showError(e.message); }
+};
+function loadFrame() {
+  const t = Number($("m-time").value);
+  $("m-tlabel").textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+  $("m-img").src = `/api/frame?${meta.q}&t=${t}`;
+}
+$("m-time").onchange = loadFrame;
+$("m-time").oninput = () => { const t = Number($("m-time").value); $("m-tlabel").textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+const stage = $("stage");
+function rel(e) {
+  const r = $("m-img").getBoundingClientRect();
+  return { x: Math.min(Math.max(e.clientX - r.left, 0), r.width), y: Math.min(Math.max(e.clientY - r.top, 0), r.height), r };
+}
+stage.addEventListener("pointerdown", (e) => { drag = rel(e); stage.setPointerCapture(e.pointerId); });
+stage.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const p = rel(e), x = Math.min(drag.x, p.x), y = Math.min(drag.y, p.y), w = Math.abs(p.x - drag.x), h = Math.abs(p.y - drag.y);
+  Object.assign($("m-rect").style, { left: x + "px", top: y + "px", width: w + "px", height: h + "px" });
+  $("m-rect").classList.remove("hidden");
+  const k = meta.width / p.r.width;
+  box = [x * k, y * k, w * k, h * k];
+  $("m-save").disabled = w < 10 || h < 10;
+});
+stage.addEventListener("pointerup", () => { drag = null; });
+$("m-cancel").onclick = () => $("modal").classList.add("hidden");
+$("modal").onclick = (e) => { if (e.target === $("modal")) $("modal").classList.add("hidden"); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("modal").classList.add("hidden"); });
+$("m-save").onclick = () => {
+  if (!box) return;
+  setFacecam(...box);
+  $("modal").classList.add("hidden");
+  showInfo(`Facecam ditandai: ${$("facecam").value}. Sekarang scan atau render dengan layout Facecam.`);
+};
 const v = $("video");
 v.addEventListener("dragover", (e) => e.preventDefault());
 v.addEventListener("drop", (e) => {
