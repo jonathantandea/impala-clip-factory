@@ -1,5 +1,7 @@
-# Intel Macs (x86_64): PyTorch 2.2.2 is the last release with Intel-Mac wheels,
-# and it needs NumPy 1.x. Other machines get current versions.
+# Intel Macs (x86_64) only get prebuilt wheels up to these versions; newer ones
+# try to compile from source and fail (llvmlite needs LLVM). Other machines get current versions.
 torch==2.2.2 ; sys_platform == "darwin" and platform_machine == "x86_64"
 numpy<2 ; sys_platform == "darwin" and platform_machine == "x86_64"
+numba==0.62.1 ; sys_platform == "darwin" and platform_machine == "x86_64"
+llvmlite==0.45.1 ; sys_platform == "darwin" and platform_machine == "x86_64"
 openai-whisper>=20240930

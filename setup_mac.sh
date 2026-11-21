@@ -127,9 +127,9 @@ if [ ! -x .venv/bin/python ]; then
 fi
 VPY="$APP/.venv/bin/python"
 "$VPY" -m pip install -q --upgrade pip setuptools wheel >>"$LOG" 2>&1 || warn "upgrade pip gagal (lanjut)"
-if ! "$VPY" -m pip install -r requirements.txt >>"$LOG" 2>&1; then
+if ! "$VPY" -m pip install --prefer-binary -r requirements.txt >>"$LOG" 2>&1; then
   warn "Install pertama gagal, coba sekali lagi tanpa cache ..."
-  "$VPY" -m pip install --no-cache-dir -r requirements.txt >>"$LOG" 2>&1 \
+  "$VPY" -m pip install --prefer-binary --no-cache-dir -r requirements.txt >>"$LOG" 2>&1 \
     || fail "pip install gagal. Baris error ada di log."
 fi
 "$VPY" -c "import whisper, torch; print('whisper OK, torch', torch.__version__)" >>"$LOG" 2>&1 \
