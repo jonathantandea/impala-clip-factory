@@ -1,0 +1,4 @@
+# Kamus koreksi Whisper. Satu baris per koreksi: salah => benar
+# Salin jadi kamus.txt lalu pakai: --kamus kamus.txt
+impala => Impala
+gimang => gimana
