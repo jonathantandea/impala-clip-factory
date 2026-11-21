@@ -8,6 +8,7 @@ from pathlib import Path
 from .util import log, mmss, run
 
 W, H = 1080, 1920
+MAC_FONT_DIRS = ["/System/Library/Fonts/Supplemental", "/Library/Fonts", "/System/Library/Fonts"]
 
 
 def video_filter(layout: str, facecam: tuple[int, int, int, int] | None) -> str:
@@ -43,14 +44,27 @@ def render_clip(video: Path, clip: dict, out_mp4: Path, *, layout: str = "blur",
     vf = video_filter(layout, facecam)
     if ass:
         # Run ffmpeg inside the folder so the subtitles path needs no escaping.
-        vf = vf[:-3] + f"[pre];[pre]subtitles={ass.name}[v]"
+        sub = f"subtitles={ass.name}"
+        fonts = next((d for d in MAC_FONT_DIRS if Path(d).is_dir()), None) if sys.platform == "darwin" else None
+        if fonts:  # static ffmpeg builds may not find system fonts through fontconfig
+            sub += f":fontsdir={fonts}"
+        vf = vf[:-3] + f"[pre];[pre]{sub}[v]"
     dur = clip["end"] - clip["start"]
-    cmd = ["ffmpeg", "-y", "-v", "error", "-ss", f"{clip['start']:.3f}", "-t", f"{dur:.3f}",
-           "-i", str(video.resolve()), "-filter_complex", vf, "-map", "[v]", "-map", "0:a:0?",
-           *encoder_args(encoder), "-pix_fmt", "yuv420p", "-r", "30",
-           "-c:a", "aac", "-b:a", "160k", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
-           "-movflags", "+faststart", out_mp4.name]
-    run(cmd, cwd=out_mp4.parent)
+
+    def cmd(enc):
+        return ["ffmpeg", "-y", "-v", "error", "-ss", f"{clip['start']:.3f}", "-t", f"{dur:.3f}",
+                "-i", str(video.resolve()), "-filter_complex", vf, "-map", "[v]", "-map", "0:a:0?",
+                *encoder_args(enc), "-pix_fmt", "yuv420p", "-r", "30",
+                "-c:a", "aac", "-b:a", "160k", "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
+                "-movflags", "+faststart", out_mp4.name]
+
+    try:
+        run(cmd(encoder), cwd=out_mp4.parent)
+    except RuntimeError:
+        if encoder == "x264":
+            raise
+        log("  encoder hardware gagal, ulang dengan libx264 ...")
+        run(cmd("x264"), cwd=out_mp4.parent)
 
 
 def contact_sheet(video: Path, clips: list[dict], out_jpg: Path, cols: int = 4) -> None:

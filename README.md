@@ -4,27 +4,15 @@ Ambil video panjang (VOD, podcast, live), pilih momen terbaik secara otomatis, l
 
 ## Pasang di Mac (sekali saja)
 
-```bash
-brew install ffmpeg python@3.12 ollama git
-```
+Satu perintah, tanpa Homebrew dan tanpa git (cocok untuk Mac Intel lama di macOS 12):
 
 ```bash
-git clone https://github.com/<akun>/impala-clip-factory.git && cd impala-clip-factory
+curl -fsSL https://raw.githubusercontent.com/jonathantandea/impala-clip-factory/main/setup_mac.sh -o ~/setup_mac.sh && bash ~/setup_mac.sh
 ```
 
-```bash
-python3.12 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-```
+Script memasang ffmpeg, Python 3.12, Whisper, lalu tes render kecil. Aman dijalankan ulang. Kalau gagal, kirim `tail -40 ~/clipfactory-setup.log`.
 
-```bash
-ollama serve
-```
-
-Biarkan `ollama serve` jalan di tab Terminal itu. Buka tab baru, lalu:
-
-```bash
-ollama pull qwen2.5:7b
-```
+Ollama butuh macOS 14+. Di Mac yang lebih lama, pakai `--no-llm` lalu kirim `transcript.json` ke Claude untuk dipilihkan momennya; Claude mengirim balik `candidates.json` yang tinggal di-`render`.
 
 ## Pemakaian
 
