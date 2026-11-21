@@ -72,6 +72,23 @@ else
   ok "$("$BIN/ffmpeg" -version | head -1 | cut -d' ' -f1-3)"
 fi
 
+# ---------------------------------------------------------------- Deno (yt-dlp needs a JS runtime for YouTube)
+if "$BIN/deno" --version >/dev/null 2>&1; then
+  ok "deno sudah ada ($("$BIN/deno" --version | head -1))"
+else
+  if [ "$ARCH" = "arm64" ]; then DZ="deno-aarch64-apple-darwin.zip"; else DZ="deno-x86_64-apple-darwin.zip"; fi
+  TMP=$(mktemp -d)
+  if fetch "https://github.com/denoland/deno/releases/latest/download/$DZ" "$TMP/deno.zip" \
+     && unzip -o -q "$TMP/deno.zip" -d "$TMP" && mv -f "$TMP/deno" "$BIN/deno" && chmod +x "$BIN/deno"; then
+    xattr -d com.apple.quarantine "$BIN/deno" 2>/dev/null || true
+    "$BIN/deno" --version >>"$LOG" 2>&1 && ok "deno terpasang (untuk link YouTube)" \
+      || warn "deno terdownload tapi tidak jalan; link YouTube mungkin terbatas"
+  else
+    warn "download deno gagal; link YouTube mungkin terbatas (file lokal tetap bisa)"
+  fi
+  rm -rf "$TMP"
+fi
+
 # ---------------------------------------------------------------- Python
 step "2/5 Python 3.12"
 PY=""
@@ -132,6 +149,8 @@ if ! "$VPY" -m pip install --prefer-binary -r requirements.txt >>"$LOG" 2>&1; th
   "$VPY" -m pip install --prefer-binary --no-cache-dir -r requirements.txt >>"$LOG" 2>&1 \
     || fail "pip install gagal. Baris error ada di log."
 fi
+"$VPY" -m pip install -q --prefer-binary -U "yt-dlp[default]" >>"$LOG" 2>&1 && ok "yt-dlp $("$VPY" -m yt_dlp --version 2>/dev/null) (selalu diupdate)" \
+  || warn "update yt-dlp gagal (lanjut)"
 "$VPY" -c "import whisper, torch; print('whisper OK, torch', torch.__version__)" >>"$LOG" 2>&1 \
   || fail "Whisper terpasang tapi tidak bisa di-import."
 ok "Whisper + torch $("$VPY" -c 'import torch; print(torch.__version__)' 2>/dev/null)"

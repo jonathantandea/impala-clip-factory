@@ -10,6 +10,7 @@ import json
 import urllib.error
 import urllib.request
 
+from .remote import heat_at
 from .util import log, mmss
 
 SYSTEM = """Kamu editor video pendek (TikTok/Reels/Shorts) yang tajam.
@@ -82,21 +83,32 @@ def pick_llm(segments, duration: float, host: str, model: str, min_len: int, max
     return found
 
 
-def pick_heuristic(segments, duration: float, min_len: int, max_len: int) -> list[dict]:
-    """Score sliding windows by speech density plus excitement markers."""
+def pick_heuristic(segments, duration: float, min_len: int, max_len: int, heatmap=None) -> list[dict]:
+    """Score sliding windows by speech density, excitement markers and YouTube 'Most replayed'."""
+    from bisect import bisect_left
     target = (min_len + max_len) / 2
-    out, t = [], 0.0
-    while t + min_len <= duration:
-        segs = [s for s in segments if s["start"] >= t and s["end"] <= t + target]
-        if segs:
-            words = sum(len(s["words"]) or len(s["text"].split()) for s in segs)
-            text = " ".join(s["text"] for s in segs)
-            bang = text.count("!") + text.count("?")
-            score = words / target * 3 + bang * 0.5
-            out.append({"start": segs[0]["start"], "end": segs[-1]["end"],
-                        "title": segs[0]["text"][:60], "hook": "", "reason": "padat bicara (heuristik)",
-                        "score": round(min(10, score), 1), "source": "heuristic"})
-        t += 10
+    starts = [s["start"] for s in segments]
+    out = []
+    centers = [t + target / 2 for t in range(0, max(1, int(duration - min_len)), 10)]
+    if heatmap:  # also try windows centred on the most re-watched spots
+        centers += [(h["start_time"] + h["end_time"]) / 2 for h in heatmap if float(h.get("value", 0)) >= 0.5]
+    for c in centers:
+        t0 = max(0.0, c - target / 2)
+        i = bisect_left(starts, t0)
+        segs = []
+        while i < len(segments) and segments[i]["end"] <= t0 + target:
+            segs.append(segments[i])
+            i += 1
+        if not segs:
+            continue
+        words = sum(len(s["words"]) or len(s["text"].split()) for s in segs)
+        text = " ".join(s["text"] for s in segs)
+        bang = text.count("!") + text.count("?")
+        heat = heat_at(heatmap, segs[0]["start"], segs[-1]["end"])
+        score = words / target * 3 + bang * 0.5 + heat * 6
+        reason = f"sering diputar ulang ({heat:.0%})" if heat >= 0.5 else "padat bicara (heuristik)"
+        out.append({"start": segs[0]["start"], "end": segs[-1]["end"], "title": segs[0]["text"][:60],
+                    "hook": "", "reason": reason, "score": round(min(10, score), 1), "source": "heuristic"})
     return out
 
 
@@ -138,7 +150,7 @@ def dedupe(clips, top: int) -> list[dict]:
 
 
 def pick(segments, duration: float, *, use_llm: bool, host: str, model: str,
-         min_len: int, max_len: int, top: int) -> list[dict]:
+         min_len: int, max_len: int, top: int, heatmap=None) -> list[dict]:
     raw: list[dict] = []
     if use_llm:
         if ollama_ok(host):
@@ -146,6 +158,9 @@ def pick(segments, duration: float, *, use_llm: bool, host: str, model: str,
             raw = pick_llm(segments, duration, host, model, min_len, max_len)
         else:
             log(f"Ollama tidak bisa dihubungi di {host}. Pakai heuristik. (Jalankan: ollama serve)")
+        if raw and heatmap:  # nudge LLM scores toward moments viewers re-watched
+            for c in raw:
+                c["score"] = round(min(10, c["score"] + heat_at(heatmap, c["start"], c["end"]) * 2), 1)
     if not raw:
-        raw = pick_heuristic(segments, duration, min_len, max_len)
+        raw = pick_heuristic(segments, duration, min_len, max_len, heatmap)
     return dedupe(snap(raw, segments, duration, min_len, max_len), top)

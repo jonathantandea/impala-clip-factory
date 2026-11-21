@@ -85,6 +85,8 @@
   .stage img { width: 100%; display: block; min-height: 120px; }
   .rect { position: absolute; border: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 20%, transparent);
     box-shadow: 0 0 0 9999px rgba(0,0,0,.35); pointer-events: none; }
+  .ph { aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; background: var(--code);
+    color: var(--muted); font-size: 13px; }
   details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 </style>
 </head>
@@ -102,12 +104,12 @@
   <aside>
     <section class="card">
       <h2>1 · Video baru</h2>
-      <label for="video">Video (10–30 menit paling pas)</label>
+      <label for="video">Link YouTube/Twitch, atau file video di Mac</label>
       <div class="row">
-        <input type="text" id="video" placeholder="/Users/kamu/Movies/vod.mp4">
+        <input type="text" id="video" placeholder="https://www.youtube.com/watch?v=…  atau  /Users/kamu/Movies/vod.mp4">
         <button id="btn-choose" style="flex:0">Pilih…</button>
       </div>
-      <p class="muted" style="margin:6px 0 0">Klik Pilih…, atau tempel path. Bisa juga seret file dari Finder ke kotak ini.</p>
+      <p class="muted" style="margin:6px 0 0">Tempel link stream (VOD yang sudah selesai). Hanya momen terpilih yang diunduh, bukan 6 jamnya. Untuk file di Mac: klik Pilih….</p>
 
       <div class="row">
         <div><label for="model">Whisper</label>
@@ -123,6 +125,13 @@
 
       <label for="prompt">Nama/istilah yang sering muncul (opsional)</label>
       <input type="text" id="prompt" placeholder="Impala, Valorant, Jonathan">
+
+      <label for="cookies">Login (untuk video member-only / age-restricted)</label>
+      <select id="cookies">
+        <option value="">Tidak perlu</option><option value="chrome">Pakai login Chrome</option>
+        <option value="safari">Pakai login Safari</option><option value="firefox">Pakai login Firefox</option>
+        <option value="brave">Pakai login Brave</option><option value="edge">Pakai login Edge</option>
+      </select>
 
       <div class="row">
         <div><label for="top">Jumlah kandidat</label><input type="number" id="top" value="8" min="1" max="30"></div>
@@ -205,7 +214,9 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 function renderOpts() {
   return { layout: $("layout").value, facecam: $("facecam").value,
-           captions: $("captions").checked, hook: $("hook").checked };
+           captions: $("captions").checked, hook: $("hook").checked,
+           whisper_model: $("model").value, lang: $("lang").value, prompt: $("prompt").value,
+           cookies: $("cookies").value };
 }
 
 // ---------- status
@@ -228,7 +239,7 @@ async function loadProjects() {
   const ul = $("projects");
   if (!list.length) { ul.innerHTML = '<li class="muted">Belum ada.</li>'; return; }
   ul.innerHTML = list.map((p) => `<li data-name="${esc(p.name)}" class="${p.name === current ? "active" : ""}">
-      <b>${esc(p.name)}</b><span class="muted">${p.clips} kandidat · ${p.rendered} dirender · ${esc(p.updated)}</span></li>`).join("");
+      <b>${esc(p.title || p.name)}</b><span class="muted">${p.clips} kandidat · ${p.rendered} dirender · ${esc(p.updated)}</span></li>`).join("");
   ul.querySelectorAll("li[data-name]").forEach((li) => li.onclick = () => openProject(li.dataset.name));
 }
 
@@ -246,7 +257,8 @@ function drawProject(p) {
   const cards = clips.map((c) => `
     <article class="clip ${selected.has(c.id) ? "sel" : ""}" data-id="${c.id}">
       ${c.rendered ? `<video src="${esc(c.mp4)}?t=${Date.now()}" controls preload="metadata" playsinline></video>`
-                   : `<img loading="lazy" src="/api/thumb/${encodeURIComponent(p.name)}/${c.id}.jpg" alt="">`}
+                   : `<img loading="lazy" src="/api/thumb/${encodeURIComponent(p.name)}/${c.id}.jpg" alt=""
+                        onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'ph',textContent:'${p.is_link ? "Belum diunduh · klik Render" : "Tidak ada gambar"}'}))">`}
       <div class="body">
         <div class="meta"><span>#${c.id}</span><span>${esc(c.range)}</span><span>${c.length} dtk</span>
           <span class="score">skor ${c.score}</span>${c.rendered ? '<span class="badge">dirender</span>' : ""}</div>
@@ -263,7 +275,7 @@ function drawProject(p) {
   $("detail").innerHTML = `
     <div class="card">
       <div class="toolbar">
-        <h2>${esc(p.name)}</h2>
+        <h2>${esc(p.title || p.name)}${p.is_link ? ` <a class="muted" style="font-size:13px;font-weight:400" href="${esc(p.video)}" target="_blank" rel="noopener">buka link ↗</a>` : ""}</h2>
         <button id="btn-render-sel" class="primary" ${selected.size ? "" : "disabled"}>Render terpilih (${selected.size})</button>
         <button id="btn-render-all" ${clips.length ? "" : "disabled"}>Render semua</button>
         <button id="btn-open-proj">Buka folder</button>
@@ -311,7 +323,7 @@ async function startRender(ids) {
 $("btn-scan").onclick = async () => {
   try {
     const r = await api("/api/scan", {
-      video: $("video").value, whisper_model: $("model").value, lang: $("lang").value, prompt: $("prompt").value,
+      video: $("video").value,
       top: $("top").value, render_top: $("rtop").value, min_len: $("minlen").value, max_len: $("maxlen").value,
       use_llm: $("llm").checked, ...renderOpts() });
     current = r.project; pollSoon();
@@ -337,9 +349,9 @@ try {
 
 // ---------- facecam marker
 function videoQuery() {
-  const v = $("video").value.trim();
-  if (v) return "video=" + encodeURIComponent(v);
-  if (current) return "project=" + encodeURIComponent(current);
+  const v = $("video").value.trim(), ck = $("cookies").value ? "&cookies=" + $("cookies").value : "";
+  if (v) return "video=" + encodeURIComponent(v) + ck;
+  if (current) return "project=" + encodeURIComponent(current) + ck;
   throw new Error("Pilih video dulu (kotak Video, atau klik project di kiri).");
 }
 function setFacecam(x, y, w, h) {

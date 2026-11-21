@@ -24,6 +24,18 @@ cd ~/impala-clip-factory && source .venv/bin/activate && python -m clipfactory w
 
 Browser terbuka di http://localhost:8765. Pilih video, klik **Mulai scan**, lalu tonton, pilih dan render clip langsung di halaman itu. Hanya bisa dibuka dari Mac ini sendiri.
 
+### Dari link YouTube/Twitch (tanpa download 6 jam)
+
+Tempel link VOD di kotak Video lalu **Mulai scan**:
+
+1. Info + grafik "Most replayed" dibaca tanpa download.
+2. Transkrip diambil dari subtitle otomatis YouTube (detik). Kalau tidak ada: hanya audio yang diunduh lalu Whisper.
+3. Saat **Render**, hanya potongan terpilih yang diunduh (1080p), lalu Whisper jalan di potongan itu supaya caption akurat.
+
+Video member-only/age-restricted: pilih browser di opsi **Login**. Kalau YouTube berubah dan link gagal, jalankan `setup_mac.sh` lagi (yt-dlp ikut diupdate). Live yang masih berjalan belum bisa; tunggu jadi VOD.
+
+Lewat Terminal: `python -m clipfactory scan "https://www.youtube.com/watch?v=..." --no-llm --render-top 2 --captions --hook`
+
 ## Pemakaian lewat Terminal
 
 Setiap buka Terminal baru: `cd impala-clip-factory && source .venv/bin/activate`.

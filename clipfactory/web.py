@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from .remote import cached_info, direct_video_url, is_url, project_name
 from .util import LOG_SINKS, log, mmss, probe_duration, probe_size, read_json, run, write_json
 
 OUT = Path("out").resolve()
@@ -123,7 +124,9 @@ def list_projects():
                 "updated": time.strftime("%d %b %H:%M", time.localtime(d.stat().st_mtime))}
         if c.exists():
             try:
-                info["clips"] = len(read_json(c).get("clips", []))
+                cj = read_json(c)
+                info["clips"] = len(cj.get("clips", []))
+                info["title"] = cj.get("title") or ""
             except (ValueError, OSError):
                 pass
         items.append(info)
@@ -141,7 +144,8 @@ def project_info(name: str):
         c["length"] = round(c["end"] - c["start"])
     md = (d / "candidates.md").read_text(encoding="utf-8") if (d / "candidates.md").exists() else ""
     stats = [ln[2:] for ln in md.splitlines()[:8] if ln.startswith("- ")]
-    return {"name": name, "video": data.get("video", ""), "duration": data.get("duration", 0),
+    return {"name": name, "video": data.get("video", ""), "title": data.get("title", ""),
+            "is_link": is_url(data.get("video", "")), "duration": data.get("duration", 0),
             "clips": data.get("clips", []), "stats": stats,
             "has_transcript": (d / "transcript.json").exists()}
 
@@ -154,7 +158,13 @@ def thumb(name: str, cid: int) -> Path:
     data = read_json(d / "candidates.json")
     c = next(x for x in data["clips"] if x["id"] == cid)
     out.parent.mkdir(exist_ok=True)
-    run(["ffmpeg", "-y", "-v", "error", "-ss", f"{(c['start'] + c['end']) / 2:.2f}", "-i", data["video"],
+    src, t = data["video"], (c["start"] + c["end"]) / 2
+    if is_url(src):  # link project: only downloaded pieces are local
+        piece = d / "src" / f"clip_{cid:02d}.mp4"
+        if not piece.exists():
+            raise FileNotFoundError("belum diunduh")
+        src, t = str(piece), (c["end"] - c["start"]) / 2
+    run(["ffmpeg", "-y", "-v", "error", "-ss", f"{t:.2f}", "-i", src,
          "-frames:v", "1", "-vf", "scale=480:-2", "-q:v", "4", str(out)])
     return out
 
@@ -166,7 +176,7 @@ def import_candidates(name: str, raw: str):
     clips = incoming["clips"] if isinstance(incoming, dict) else incoming
     old = read_json(d / "candidates.json") if (d / "candidates.json").exists() else {}
     video = (incoming.get("video") if isinstance(incoming, dict) else None) or old.get("video")
-    if not video or not Path(video).exists():
+    if not video or (not is_url(video) and not Path(video).exists()):
         raise ValueError("path video tidak diketahui: scan video ini dulu di project yang sama")
     norm = []
     for i, c in enumerate(clips, 1):
@@ -191,19 +201,33 @@ def choose_file_mac() -> str:
     return proc.stdout.strip()
 
 
-def resolve_video(q: dict) -> Path:
-    """Video from ?project=NAME (its scanned video) or ?video=PATH (not scanned yet)."""
+def resolve_video(q: dict):
+    """Video from ?video=PATH-or-URL, else ?project=NAME (its scanned video)."""
+    if q.get("video") and q["video"][0].strip():
+        v = q["video"][0].strip()
+        return v if is_url(v) else Path(clean_path(v))
     if q.get("project"):
         d = project_dir(q["project"][0])
         if (d / "candidates.json").exists():
-            return Path(read_json(d / "candidates.json")["video"])
-    if q.get("video"):
-        return Path(clean_path(q["video"][0]))
+            v = read_json(d / "candidates.json")["video"]
+            return v if is_url(v) else Path(v)
     raise ValueError("pilih video dulu")
 
 
-def video_frame(video: Path, t: float) -> bytes:
-    proc = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t):.2f}", "-i", str(video),
+def probe_any(v, cookies=None) -> dict:
+    if isinstance(v, str):
+        info = cached_info(v, cookies)
+        return {"video": v, "width": info.get("width") or 1920, "height": info.get("height") or 1080,
+                "duration": info.get("duration") or 0, "title": info.get("title")}
+    if not v.is_file():
+        raise ValueError(f"video tidak ditemukan: {v}")
+    w, h = probe_size(v)
+    return {"video": str(v), "width": w, "height": h, "duration": probe_duration(v)}
+
+
+def video_frame(video, t: float, cookies=None) -> bytes:
+    src = direct_video_url(video, cookies) if isinstance(video, str) else str(video)
+    proc = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t):.2f}", "-i", src,
                            "-frames:v", "1", "-vf", "scale=960:-2", "-q:v", "4", "-f", "image2", "-c:v", "mjpeg",
                            "pipe:1"], capture_output=True)
     if proc.returncode != 0 or not proc.stdout:
@@ -218,28 +242,34 @@ def ollama_status() -> bool:
 
 # ----------------------------------------------------------------------------- argv builders
 def scan_argv(o: dict) -> tuple[str, list[str]]:
-    video = clean_path(o.get("video", ""))
-    if not Path(video).is_file():
-        raise ValueError(f"video tidak ditemukan: {video}")
-    name = safe_name(Path(video).stem)
+    raw = (o.get("video") or "").strip()
+    if is_url(raw):
+        video, name = raw, project_name(raw)
+    else:
+        video = clean_path(raw)
+        if not Path(video).is_file():
+            raise ValueError(f"video tidak ditemukan: {video}")
+        name = safe_name(Path(video).stem)
     argv = ["scan", video, "--out", str(OUT / name),
-            "--whisper-model", o.get("whisper_model", "base"),
             "--top", str(int(o.get("top", 8))),
             "--min-len", str(int(o.get("min_len", 20))), "--max-len", str(int(o.get("max_len", 60))),
             "--render-top", str(int(o.get("render_top", 0)))]
-    if o.get("lang", "id"):
-        argv += ["--lang", o["lang"]]
-    if o.get("prompt"):
-        argv += ["--prompt", o["prompt"]]
     if not o.get("use_llm"):
         argv.append("--no-llm")
-    if Path("kamus.txt").exists():
-        argv += ["--kamus", "kamus.txt"]
     return name, argv + render_flags(o)
 
 
 def render_flags(o: dict) -> list[str]:
-    flags = ["--layout", o.get("layout", "blur")]
+    flags = ["--layout", o.get("layout", "blur"), "--whisper-model", o.get("whisper_model", "base"),
+             "--lang", o.get("lang", "id")]
+    if o.get("prompt"):
+        flags += ["--prompt", o["prompt"]]
+    if o.get("cookies"):
+        if o["cookies"] not in ("chrome", "safari", "firefox", "edge", "brave", "opera", "vivaldi"):
+            raise ValueError("browser cookies tidak dikenal")
+        flags += ["--cookies", o["cookies"]]
+    if Path("kamus.txt").exists():
+        flags += ["--kamus", "kamus.txt"]
     if o.get("captions", True):
         flags.append("--captions")
     if o.get("hook", True):
@@ -317,14 +347,11 @@ class Handler(BaseHTTPRequestHandler):
             if not parts:
                 return self._file(STATIC, "text/html; charset=utf-8")
             q = parse_qs(url.query)
+            cookies = (q.get("cookies") or [""])[0] or None
             if parts == ["api", "probe"]:
-                v = resolve_video(q)
-                if not v.is_file():
-                    raise ValueError(f"video tidak ditemukan: {v}")
-                w, h = probe_size(v)
-                return self._json({"video": str(v), "width": w, "height": h, "duration": probe_duration(v)})
+                return self._json(probe_any(resolve_video(q), cookies))
             if parts == ["api", "frame"]:
-                body = video_frame(resolve_video(q), float(q.get("t", ["60"])[0]))
+                body = video_frame(resolve_video(q), float(q.get("t", ["60"])[0]), cookies)
                 self.send_response(200)
                 self.send_header("Content-Type", "image/jpeg")
                 self.send_header("Content-Length", str(len(body)))

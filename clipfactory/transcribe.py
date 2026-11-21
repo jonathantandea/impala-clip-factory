@@ -13,6 +13,17 @@ from pathlib import Path
 from .util import log, run
 
 
+_MODELS: dict = {}  # loaded Whisper models, reused across clips
+
+
+def whisper_available() -> bool:
+    try:
+        import whisper  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def extract_audio(video: Path, wav: Path) -> None:
     run(["ffmpeg", "-y", "-v", "error", "-i", str(video), "-vn", "-ac", "1", "-ar", "16000",
          "-c:a", "pcm_s16le", str(wav)])
@@ -46,12 +57,14 @@ def transcribe(video: Path, workdir: Path, model_name: str = "small", language: 
     except ImportError as e:
         raise SystemExit("Whisper belum terpasang. Jalankan: pip install -r requirements.txt") from e
 
-    wav = workdir / "audio.wav"
+    wav = workdir / f"{video.stem}.whisper.wav"
     log("ekstrak audio ...")
     extract_audio(video, wav)
 
-    log(f"muat model whisper '{model_name}' (pertama kali akan download) ...")
-    model = whisper.load_model(model_name)
+    if model_name not in _MODELS:
+        log(f"muat model whisper '{model_name}' (pertama kali akan download) ...")
+        _MODELS[model_name] = whisper.load_model(model_name)
+    model = _MODELS[model_name]
     log("transkripsi berjalan, ini bagian paling lama ...")
     result = model.transcribe(str(wav), language=language, word_timestamps=True,
                               initial_prompt=prompt, fp16=False, verbose=False)
