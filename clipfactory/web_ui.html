@@ -161,7 +161,8 @@
           <button data-corner="tl">↖ Kiri atas</button><button data-corner="tr">Kanan atas ↗</button>
           <button data-corner="bl">↙ Kiri bawah</button><button data-corner="br">Kanan bawah ↘</button>
         </div>
-        <label for="facecam">Posisi (x,y,lebar,tinggi dalam piksel; terisi otomatis)</label>
+        <p id="facecam-msg" class="muted" style="margin:8px 0 0" aria-live="polite"></p>
+        <label for="facecam">Posisi (x,y,lebar,tinggi dalam piksel; terisi otomatis, atau ketik sendiri)</label>
         <input type="text" id="facecam" placeholder="1440,810,480,270">
       </div>
       <label class="check"><input type="checkbox" id="captions" checked> Caption otomatis</label>
@@ -358,21 +359,33 @@ function setFacecam(x, y, w, h) {
   $("facecam").value = [x, y, w, h].map((n) => Math.max(0, Math.round(n))).join(",");
   $("facecam").onchange();
 }
+function fcMsg(text, bad) { const el = $("facecam-msg"); el.textContent = text; el.style.color = bad ? "var(--bad)" : ""; }
+function withTimeout(promise, ms) {
+  return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+}
 document.querySelectorAll(".corners button").forEach((b) => b.onclick = async () => {
+  const c = b.dataset.corner, name = b.textContent.trim();
+  let W = 1920, H = 1080, note = "";
   try {
-    const m = await api("/api/probe?" + videoQuery());
-    const w = Math.round(m.width * 0.25), h = Math.round(m.height * 0.25);
-    const c = b.dataset.corner;
-    setFacecam(c[1] === "r" ? m.width - w : 0, c[0] === "b" ? m.height - h : 0, w, h);
-    showInfo(`Facecam diset ke ${b.textContent.trim()} (${$("facecam").value}). Kurang pas? Pakai Tandai facecam di gambar.`);
-  } catch (e) { showError(e.message); }
+    fcMsg("Membaca ukuran video…");
+    const m = await withTimeout(api("/api/probe?" + videoQuery()), 25000);
+    W = m.width; H = m.height;
+  } catch (e) {
+    note = " (ukuran video tidak terbaca, dianggap 1920×1080)";
+  }
+  const w = Math.round(W * 0.25), h = Math.round(H * 0.25);
+  setFacecam(c[1] === "r" ? W - w : 0, c[0] === "b" ? H - h : 0, w, h);
+  fcMsg(`✓ Facecam: ${name} = ${$("facecam").value}${note}`);
 });
 
 let meta = null, drag = null, box = null;
 $("btn-mark").onclick = async () => {
+  const btn = $("btn-mark");
   try {
     const q = videoQuery();
-    meta = await api("/api/probe?" + q);
+    btn.disabled = true; btn.textContent = "Memuat gambar dari video… (bisa 5–20 detik untuk link)";
+    fcMsg("");
+    meta = await withTimeout(api("/api/probe?" + q), 60000);
     meta.q = q;
     $("m-time").max = Math.max(1, Math.floor(meta.duration));
     $("m-time").value = Math.min(60, Math.floor(meta.duration / 4));
@@ -380,12 +393,27 @@ $("btn-mark").onclick = async () => {
     $("m-info").textContent = `Video ${meta.width}×${meta.height}. Klik dan tarik dari satu pojok facecam ke pojok seberangnya.`;
     loadFrame();
     $("modal").classList.remove("hidden");
-  } catch (e) { showError(e.message); }
+  } catch (e) {
+    fcMsg("Gagal membuka gambar: " + (e.message === "timeout" ? "terlalu lama, coba lagi" : e.message.replace(/\.$/, ""))
+          + ". Pakai tombol pojok di bawah, atau ketik posisi sendiri.", true);
+  } finally { btn.disabled = false; btn.textContent = "Tandai facecam di gambar…"; }
 };
-function loadFrame() {
+$("m-img").onload = () => { $("m-info").style.color = ""; if (meta) $("m-info").textContent = `Video ${meta.width}×${meta.height}. Klik dan tarik dari satu pojok facecam ke pojok seberangnya.`; };
+let frameUrl = null;
+async function loadFrame() {
   const t = Number($("m-time").value);
   $("m-tlabel").textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
-  $("m-img").src = `/api/frame?${meta.q}&t=${t}`;
+  $("m-info").textContent = meta.q.includes("http") ? "Memuat gambar dari link… (5–20 detik)" : "Memuat gambar…";
+  try {
+    const r = await fetch(`/api/frame?${meta.q}&t=${t}`);
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+    if (frameUrl) URL.revokeObjectURL(frameUrl);
+    frameUrl = URL.createObjectURL(await r.blob());
+    $("m-img").src = frameUrl;
+  } catch (e) {
+    $("m-info").textContent = "Gambar gagal dimuat: " + e.message + " — geser slider ke waktu lain, atau tutup dan pakai tombol pojok / ketik posisi.";
+    $("m-info").style.color = "var(--bad)";
+  }
 }
 $("m-time").onchange = loadFrame;
 $("m-time").oninput = () => { const t = Number($("m-time").value); $("m-tlabel").textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
@@ -412,7 +440,7 @@ $("m-save").onclick = () => {
   if (!box) return;
   setFacecam(...box);
   $("modal").classList.add("hidden");
-  showInfo(`Facecam ditandai: ${$("facecam").value}. Sekarang scan atau render dengan layout Facecam.`);
+  fcMsg(`✓ Facecam ditandai: ${$("facecam").value}`);
 };
 const v = $("video");
 v.addEventListener("dragover", (e) => e.preventDefault());

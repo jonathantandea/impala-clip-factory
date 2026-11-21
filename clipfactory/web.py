@@ -20,7 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from .remote import cached_info, direct_video_url, is_url, project_name
+from .remote import cached_info, frame_from_link, is_url, project_name
 from .util import LOG_SINKS, log, mmss, probe_duration, probe_size, read_json, run, write_json
 
 OUT = Path("out").resolve()
@@ -226,12 +226,18 @@ def probe_any(v, cookies=None) -> dict:
 
 
 def video_frame(video, t: float, cookies=None) -> bytes:
-    src = direct_video_url(video, cookies) if isinstance(video, str) else str(video)
+    if isinstance(video, str):  # link: let yt-dlp fetch a tiny low-res piece, then grab its first frame
+        src, t = str(frame_from_link(video, t, OUT / ".frames", cookies)), 0.3
+    else:
+        src = str(video)
+        if not video.is_file():
+            raise ValueError(f"video tidak ditemukan: {video}")
     proc = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, t):.2f}", "-i", src,
                            "-frames:v", "1", "-vf", "scale=960:-2", "-q:v", "4", "-f", "image2", "-c:v", "mjpeg",
                            "pipe:1"], capture_output=True)
     if proc.returncode != 0 or not proc.stdout:
-        raise ValueError("tidak bisa ambil gambar dari video")
+        err = (proc.stderr or b"").decode(errors="replace").strip().splitlines()[-1:] or [""]
+        raise ValueError(f"tidak bisa ambil gambar dari video: {err[0]}")
     return proc.stdout
 
 

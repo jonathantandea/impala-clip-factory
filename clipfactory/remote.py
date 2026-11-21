@@ -196,6 +196,23 @@ def direct_video_url(url: str, cookies: str | None = None) -> str:
     return _URL_CACHE[url]
 
 
+def frame_from_link(url: str, t: float, workdir: Path, cookies: str | None = None) -> Path:
+    """One low-res second of video around t, downloaded by yt-dlp itself (handles YouTube's
+    headers/signatures), for grabbing a still frame. Cached per second."""
+    workdir.mkdir(parents=True, exist_ok=True)
+    key = hashlib.sha1(f"{url}|{int(t)}".encode()).hexdigest()[:12]
+    done = [p for p in workdir.glob(f"f_{key}.*") if p.suffix not in (".part", ".ytdl")]
+    if done:
+        return done[0]
+    _ytdlp(["-f", "bv*[height<=480][height>=240]/bv*[height<=720]/b[height<=480]/b",
+            "--download-sections", f"*{max(0, int(t))}-{int(t) + 2}",
+            "-o", str(workdir / f"f_{key}.%(ext)s"), url], cookies)
+    done = [p for p in workdir.glob(f"f_{key}.*") if p.suffix not in (".part", ".ytdl")]
+    if not done:
+        raise RuntimeError("potongan untuk gambar tidak terunduh")
+    return done[0]
+
+
 def heat_at(heatmap, start: float, end: float) -> float:
     """Average 'Most replayed' value (0..1) over a time range."""
     if not heatmap:
