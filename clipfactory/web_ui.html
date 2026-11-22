@@ -94,6 +94,7 @@
 <header>
   <h1>Clip <span>Factory</span></h1>
   <div class="pills">
+    <span class="pill" id="pill-claude">Claude API: cek…</span>
     <span class="pill" id="pill-ollama">Ollama: cek…</span>
     <span class="pill" id="pill-kamus">kamus.txt</span>
     <button id="btn-open-out" title="Buka folder out di Finder">Buka folder out</button>
@@ -141,8 +142,9 @@
         <div><label for="minlen">Min detik</label><input type="number" id="minlen" value="20" min="5"></div>
         <div><label for="maxlen">Maks detik</label><input type="number" id="maxlen" value="60" min="10"></div>
       </div>
-      <label class="check"><input type="checkbox" id="llm"> Pilih momen dengan Ollama</label>
-      <p class="muted" id="llm-note" style="margin:0">Tanpa Ollama: pakai heuristik, lalu kirim transcript.json ke Claude.</p>
+      <p class="muted" style="margin:10px 0 4px">Momen dipilih dari sinyal penonton: lonjakan live chat, Most replayed, puncak suara, dan kata reaksi (wkwk, anjir, gila…). Setiap clip diberi setup sebelum dan payoff sesudah momennya.</p>
+      <label class="check"><input type="checkbox" id="llm"> Pakai Ollama (LLM lokal) sebagai gantinya</label>
+      <p class="muted" id="llm-note" style="margin:0"></p>
       <button class="primary full" id="btn-scan">Mulai scan</button>
     </section>
 
@@ -234,8 +236,10 @@ async function loadStatus() {
   p.textContent = s.ollama ? "Ollama: aktif" : "Ollama: mati";
   p.classList.toggle("on", s.ollama);
   $("llm").disabled = !s.ollama; $("llm").checked = s.ollama;
-  $("llm-note").textContent = s.ollama ? "Ollama terdeteksi; momen dipilih oleh LLM lokal."
-    : "Ollama tidak ada: pakai heuristik, lalu kirim transcript.json ke Claude.";
+  $("llm").checked = false;
+  $("llm-note").textContent = s.ollama ? "" : "Ollama tidak terpasang di Mac ini.";
+  $("pill-claude").classList.toggle("on", s.claude);
+  $("pill-claude").textContent = s.claude ? "Claude API: aktif (menilai konteks)" : "Claude API: tidak ada (pakai Export)";
   $("pill-kamus").classList.toggle("on", s.kamus);
   $("pill-kamus").textContent = s.kamus ? "kamus.txt: aktif" : "kamus.txt: tidak ada";
   $("btn-choose").classList.toggle("hidden", !s.mac);
@@ -294,8 +298,8 @@ function drawProject(p) {
     </div>
     <div class="card">
       <details>
-        <summary>Pakai pilihan momen dari Claude</summary>
-        <p class="muted">Kirim <code>out/${esc(p.name)}/transcript.json</code> ke Claude. Tempel JSON balasannya di sini, simpan, lalu render.</p>
+        <summary>Pakai pilihan momen dari Claude (tanpa API key)</summary>
+        <p class="muted">${p.export ? `1. <a href="${esc(p.export)}" download>Unduh file untuk Claude</a> lalu kirim ke Claude di chat. ` : "1. Kirim <code>transcript.json</code> ke Claude. "}2. Tempel JSON balasannya di sini, simpan, lalu render.</p>
         <textarea id="import-json" placeholder='{"clips":[{"start":125.4,"end":168.0,"title":"...","hook":"...","reason":"...","score":9}]}'></textarea>
         <div class="row" style="margin-top:8px"><button id="btn-import" style="flex:0">Simpan kandidat</button>
           <span id="import-msg" class="muted"></span></div>

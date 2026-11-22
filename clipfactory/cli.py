@@ -11,8 +11,10 @@ from pathlib import Path
 
 from . import __version__
 from .captions import clip_words, write_all
+from .judge import export_for_claude, judge
 from .picker import pick
-from .facedetect import describe, log_plan, plan_layout
+from .signals import audio_curve, fetch_chat, find_moments
+from .facedetect import consensus, describe, log_plan, near, plan_layout
 from .render import contact_sheet, render_clip
 from .remote import download_audio, download_section, fetch_info, fetch_transcript, is_url, project_name
 from .transcribe import transcribe, whisper_available
@@ -66,24 +68,55 @@ def _clip_words_for(c, transcript, src_info, a, out):
     return clip_words(transcript["segments"], c["start"], c["end"])
 
 
+def _prepare(out: Path, video, c, url, a):
+    """Local source for one clip (downloads the section in link mode)."""
+    if not url:
+        return Path(video), c, None
+    src = out / "src" / f"clip_{c['id']:02d}.mp4"
+    src.parent.mkdir(exist_ok=True)
+    if not src.exists():
+        log(f"download potongan #{c['id']} ({mmss(c['start'])}-{mmss(c['end'])}) saja ...")
+    with Timer() as t:
+        offset = download_section(url, c["start"], c["end"], src, getattr(a, "cookies", None))
+    if t.seconds > 1:
+        log(f"  terunduh dalam {t.seconds:.0f} detik")
+    return src, dict(c, start=c["start"] - offset, end=c["end"] - offset), (src, offset)
+
+
+def _plans(out: Path, jobs) -> dict:
+    """Auto layout for every clip, then a project-wide facecam consensus: a stream's facecam rarely
+    moves, so clips where detection missed (or caught a face in the game) reuse the agreed position."""
+    plans = {}
+    for c, src, local, _ in jobs:
+        plans[c["id"]] = plan_layout(src, local["start"], local["end"])
+    saved = read_json(out / "face.json") if (out / "face.json").exists() else None
+    cams = [p for p in plans.values() if p["layout"] == "facecam"]
+    cons = consensus(cams + ([saved] if saved else []))
+    if cons:
+        write_json(out / "face.json", cons)
+        for cid, p in plans.items():
+            if p["layout"] == "crop":          # full-screen camera: its own framing is right
+                continue
+            if p["layout"] == "blur" or (p["layout"] == "facecam" and not near(p, cons)):
+                plans[cid] = dict(cons, why=f"posisi facecam tersimpan ({cons['votes']} clip setuju)")
+    for cid, p in plans.items():
+        log_plan(cid, p)
+    return plans
+
+
 def do_render(out: Path, video, transcript: dict, clips, ids, a) -> None:
     url = video if isinstance(video, str) and is_url(video) else None
     clips_dir = out / "clips"
     clips_dir.mkdir(exist_ok=True)
+    jobs = []
     for c in clips:
         if ids and c["id"] not in ids:
             continue
+        src, local, src_info = _prepare(out, video, c, url, a)
+        jobs.append((c, src, local, src_info))
+    plans = _plans(out, jobs) if a.layout == "auto" else {}
+    for c, src, local, src_info in jobs:
         stem = clips_dir / f"clip_{c['id']:02d}"
-        src, local, src_info = Path(video) if not url else None, c, None
-        if url:
-            src = out / "src" / f"clip_{c['id']:02d}.mp4"
-            src.parent.mkdir(exist_ok=True)
-            log(f"download potongan #{c['id']} ({mmss(c['start'])}-{mmss(c['end'])}) saja ...")
-            with Timer() as t:
-                offset = download_section(url, c["start"], c["end"], src, getattr(a, "cookies", None))
-            log(f"  terunduh dalam {t.seconds:.0f} detik")
-            local = dict(c, start=c["start"] - offset, end=c["end"] - offset)
-            src_info = (src, offset)
         ass = None
         if a.captions or a.srt or a.hook:
             words = _clip_words_for(c, transcript, src_info, a, out) if (a.captions or a.srt) else []
@@ -101,15 +134,14 @@ def do_render(out: Path, video, transcript: dict, clips, ids, a) -> None:
                                                   if not ln.startswith("Dialogue: 0,")) + "\n", encoding="utf-8")
         layout, facecam, center_x = a.layout, a.facecam, 0.5
         if a.layout == "auto":
-            plan = plan_layout(src, local["start"], local["end"])
-            log_plan(c["id"], plan)
+            plan = plans[c["id"]]
             layout, facecam, center_x = plan["layout"], plan.get("facecam"), plan.get("center_x", 0.5)
             c["layout_used"] = describe(plan)
         mp4 = stem.with_suffix(".mp4")
         log(f"render #{c['id']} ({mmss(c['start'])}-{mmss(c['end'])}) ...")
         with Timer() as t:
-            render_clip(src, local, mp4, layout=layout, facecam=facecam, ass=ass, encoder=a.encoder,
-                        center_x=center_x)
+            render_clip(src, local, mp4, layout=layout, facecam=tuple(facecam) if facecam else None, ass=ass,
+                        encoder=a.encoder, center_x=center_x)
         c["render_secs"] = round(t.seconds, 1)
         c["file"] = str(mp4.relative_to(out))
         log(f"  selesai dalam {t.seconds:.1f} detik -> {mp4}")
@@ -128,6 +160,9 @@ def _transcript_for(a, out: Path, video, info):
                 audio = download_audio(video, out, a.cookies)
                 transcript = transcribe(audio, out, a.whisper_model, a.lang or None, a.prompt,
                                         Path(a.kamus) if a.kamus else None)
+                curve = audio_curve(audio, transcript["segments"][-1]["end"] if transcript["segments"] else 0)
+                if curve:
+                    write_json(out / "audio_curve.json", curve)
                 audio.unlink(missing_ok=True)
         else:
             transcript = transcribe(video, out, a.whisper_model, a.lang or None, a.prompt,
@@ -165,15 +200,39 @@ def cmd_scan(a) -> None:
         duration = transcript["segments"][-1]["end"]
 
     with Timer() as t:
-        clips = pick(transcript["segments"], duration, use_llm=not a.no_llm, host=a.ollama,
-                     model=a.llm, min_len=a.min_len, max_len=a.max_len, top=a.top,
-                     heatmap=(info or {}).get("heatmap"))
+        segs = transcript["segments"]
+        if a.picker == "ollama":
+            clips = pick(segs, duration, use_llm=True, host=a.ollama, model=a.llm, min_len=a.min_len,
+                         max_len=a.max_len, top=a.top, heatmap=(info or {}).get("heatmap"))
+            picker = f"Ollama {a.llm}"
+        else:
+            chat = fetch_chat(video, info, out, a.cookies) if info is not None and not a.no_chat else []
+            curve_path = out / "audio_curve.json"
+            if curve_path.exists():
+                audio = read_json(curve_path)
+            elif info is None:
+                log("analisis volume suara (tawa, teriakan) ...")
+                audio = audio_curve(video, duration)
+                if audio:
+                    write_json(curve_path, audio)
+            else:
+                audio = []
+            cands = find_moments(segs, duration, chat=chat, heatmap=(info or {}).get("heatmap"), audio=audio,
+                                 top=a.top * 2, min_len=a.min_len, max_len=a.max_len)
+            for i, c in enumerate(cands, 1):
+                c["id"] = i
+            export_for_claude(out / "untuk_claude.txt", cands, segs, a.min_len, a.max_len)
+            judged = None if a.no_ai else judge(cands, segs, min_len=a.min_len, max_len=a.max_len, top=a.top)
+            clips = judged if judged else cands[:a.top]
+            picker = "sinyal (" + ", ".join(x for x, ok in [("chat", bool(chat)), ("most replayed", bool((info or {}).get("heatmap"))),
+                                                           ("suara", bool(audio)), ("kata reaksi", True)] if ok) + ")"
+            if judged:
+                picker += " + penilaian Claude"
+            for i, c in enumerate(clips, 1):
+                c["id"] = i
     for c in clips:
         c["preview"] = " ".join(s["text"] for s in transcript["segments"]
                                 if s["start"] >= c["start"] - 0.1 and s["end"] <= c["end"] + 0.1)[:400]
-    picker = "heuristik" if not clips or clips[0]["source"] == "heuristic" else f"Ollama {a.llm}"
-    if info and info.get("heatmap"):
-        picker += " + Most replayed"
     log(f"{len(clips)} kandidat dipilih dalam {t.seconds:.0f} detik")
 
     video_ref = video if info is not None else str(video.resolve())
@@ -233,7 +292,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--retranscribe", action="store_true")
     s.add_argument("--llm", default="qwen2.5:7b")
     s.add_argument("--ollama", default="http://localhost:11434")
-    s.add_argument("--no-llm", action="store_true", help="pakai heuristik saja")
+    s.add_argument("--no-llm", action="store_true", help="(lama, diabaikan) pemilih default sekarang sinyal")
+    s.add_argument("--picker", choices=["signals", "ollama"], default="signals",
+                   help="signals = chat, most replayed, suara, kata reaksi (default); ollama = LLM lokal")
+    s.add_argument("--no-chat", action="store_true", help="jangan unduh chat replay")
+    s.add_argument("--no-ai", action="store_true", help="jangan pakai Claude API walau API key ada")
     s.add_argument("--top", type=int, default=8, help="jumlah kandidat")
     s.add_argument("--min-len", type=int, default=20)
     s.add_argument("--max-len", type=int, default=60)

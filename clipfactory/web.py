@@ -147,7 +147,8 @@ def project_info(name: str):
     return {"name": name, "video": data.get("video", ""), "title": data.get("title", ""),
             "is_link": is_url(data.get("video", "")), "duration": data.get("duration", 0),
             "clips": data.get("clips", []), "stats": stats,
-            "has_transcript": (d / "transcript.json").exists()}
+            "has_transcript": (d / "transcript.json").exists(),
+            "export": f"/files/{name}/untuk_claude.txt" if (d / "untuk_claude.txt").exists() else ""}
 
 
 def thumb(name: str, cid: int) -> Path:
@@ -260,8 +261,8 @@ def scan_argv(o: dict) -> tuple[str, list[str]]:
             "--top", str(int(o.get("top", 8))),
             "--min-len", str(int(o.get("min_len", 20))), "--max-len", str(int(o.get("max_len", 60))),
             "--render-top", str(int(o.get("render_top", 0)))]
-    if not o.get("use_llm"):
-        argv.append("--no-llm")
+    if o.get("use_llm"):
+        argv += ["--picker", "ollama"]
     return name, argv + render_flags(o)
 
 
@@ -370,7 +371,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(body)
                 return None
             if parts == ["api", "status"]:
-                return self._json({"ollama": ollama_status(), "mac": sys.platform == "darwin",
+                from .judge import api_available
+                return self._json({"ollama": ollama_status(), "claude": api_available(), "mac": sys.platform == "darwin",
                                    "out": str(OUT), "kamus": Path("kamus.txt").exists()})
             if parts == ["api", "projects"]:
                 return self._json(list_projects())

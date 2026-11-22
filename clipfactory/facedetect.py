@@ -48,7 +48,7 @@ class _Detector:
         self.yunet = None
         if MODEL.exists():
             try:
-                self.yunet = cv2.FaceDetectorYN.create(str(MODEL), "", (320, 320), 0.7, 0.3, 5000)
+                self.yunet = cv2.FaceDetectorYN.create(str(MODEL), "", (320, 320), 0.6, 0.3, 5000)
             except Exception:  # noqa: BLE001 - fall back to Haar
                 self.yunet = None
         if self.yunet is None:
@@ -105,7 +105,7 @@ def _median(vals):
     return s[len(s) // 2]
 
 
-def find_face(video: Path, start: float, end: float, samples: int = 8):
+def find_face(video: Path, start: float, end: float, samples: int = 10):
     """Return (face box in source pixels, frames_with_face, frames_checked, detector name) or None."""
     import cv2
     det = _Detector()
@@ -118,7 +118,7 @@ def find_face(video: Path, start: float, end: float, samples: int = 8):
             if img is None:
                 continue
             scale = 1.0
-            if img.shape[1] > 1280:  # detect on a smaller copy, map back
+            if det.yunet is None and img.shape[1] > 1280:  # Haar: detect on a smaller copy, map back
                 scale = img.shape[1] / 1280
                 img = cv2.resize(img, (1280, int(img.shape[0] / scale)))
             for (x, y, w, h, c) in det.faces(img):
@@ -163,6 +163,34 @@ def plan_layout(video: Path, start: float, end: float) -> dict:
     vert = "atas" if cy < H / 3 else "bawah" if cy > H * 2 / 3 else "tengah"
     return {"layout": "facecam", "facecam": (int(left), int(top), int(cw), int(ch)),
             "why": f"facecam {vert} {side} ({tag})"}
+
+
+def _center(p):
+    x, y, w, h = p["facecam"]
+    return x + w / 2, y + h / 2, w
+
+
+def near(p: dict, q: dict) -> bool:
+    (ax, ay, aw), (bx, by, bw) = _center(p), _center(q)
+    return abs(ax - bx) < max(aw, bw) * 0.5 and abs(ay - by) < max(aw, bw) * 0.5
+
+
+def consensus(plans: list[dict]) -> dict | None:
+    """Most agreed facecam position among clips (weights saved positions by their vote count)."""
+    plans = [p for p in plans if p and p.get("layout") == "facecam" and p.get("facecam")]
+    if not plans:
+        return None
+    best, best_votes = None, 0
+    for p in plans:
+        group = [q for q in plans if near(p, q)]
+        votes = sum(q.get("votes", 1) for q in group)
+        if votes > best_votes:
+            best, best_votes = group, votes
+    if best_votes < 2:
+        return None
+    med = lambda i: sorted(q["facecam"][i] for q in best)[len(best) // 2]
+    return {"layout": "facecam", "facecam": [med(0), med(1), med(2), med(3)], "votes": best_votes,
+            "why": "posisi facecam tersimpan"}
 
 
 def describe(plan: dict) -> str:

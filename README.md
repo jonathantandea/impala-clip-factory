@@ -12,7 +12,13 @@ curl -fsSL https://raw.githubusercontent.com/jonathantandea/impala-clip-factory/
 
 Script memasang ffmpeg, Python 3.12, Whisper, lalu tes render kecil. Aman dijalankan ulang. Kalau gagal, kirim `tail -40 ~/clipfactory-setup.log`.
 
-Ollama butuh macOS 14+. Di Mac yang lebih lama, pakai `--no-llm` lalu kirim `transcript.json` ke Claude untuk dipilihkan momennya; Claude mengirim balik `candidates.json` yang tinggal di-`render`.
+### Cara Clip Factory memilih momen
+
+Momen dipilih dari sinyal penonton, bukan tebakan: lonjakan **live chat** (chat replay YouTube/Twitch, termasuk WKWK, ANJIR, emoji, "clip"), **Most replayed** YouTube, **puncak suara** (tawa, teriakan) dan **kata reaksi** di transkrip. Tiap clip dibuat dengan setup sebelum momen dan payoff sesudahnya, dipotong di batas kalimat.
+
+**Penilaian konteks oleh Claude (opsional):** kalau Mac punya API key Anthropic (`export ANTHROPIC_API_KEY=...` di `~/.zprofile`), Claude membaca transkrip tiap kandidat, membuang yang tidak bisa berdiri sendiri, merapikan awal/akhir, dan menulis judul + hook. Biaya kecil per video. Tanpa API key: unduh `untuk_claude.txt` dari halaman project, kirim ke Claude di chat, lalu tempel jawabannya di kotak import.
+
+**Facecam:** layout auto mendeteksi muka di semua clip lalu memakai posisi facecam yang paling disepakati, jadi clip yang deteksinya meleset tetap benar.
 
 ## Pemakaian: tampilan web (paling gampang)
 
