@@ -11,9 +11,10 @@ W, H = 1080, 1920
 MAC_FONT_DIRS = ["/System/Library/Fonts/Supplemental", "/Library/Fonts", "/System/Library/Fonts"]
 
 
-def video_filter(layout: str, facecam: tuple[int, int, int, int] | None) -> str:
-    if layout == "crop":
-        return f"[0:v]scale=-2:{H},crop={W}:{H}[v]"
+def video_filter(layout: str, facecam: tuple[int, int, int, int] | None, center_x: float = 0.5) -> str:
+    if layout == "crop":  # vertical crop, centred on center_x (0..1 of the source width)
+        cx = min(max(float(center_x), 0.0), 1.0)
+        return f"[0:v]scale=-2:{H},crop={W}:{H}:'min(max(iw*{cx:.4f}-{W // 2},0),iw-{W})':0[v]"
     if layout == "facecam":
         if not facecam:
             raise SystemExit("--layout facecam butuh --facecam x,y,w,h (area facecam di video asli, dalam piksel)")
@@ -40,8 +41,8 @@ def encoder_args(encoder: str) -> list[str]:
 
 
 def render_clip(video: Path, clip: dict, out_mp4: Path, *, layout: str = "blur",
-                facecam=None, ass: Path | None = None, encoder: str = "auto") -> None:
-    vf = video_filter(layout, facecam)
+                facecam=None, ass: Path | None = None, encoder: str = "auto", center_x: float = 0.5) -> None:
+    vf = video_filter(layout, facecam, center_x)
     if ass:
         # Run ffmpeg inside the folder so the subtitles path needs no escaping.
         sub = f"subtitles={ass.name}"

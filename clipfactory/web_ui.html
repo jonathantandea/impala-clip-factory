@@ -150,10 +150,12 @@
       <h2>2 · Gaya render</h2>
       <label for="layout">Layout</label>
       <select id="layout">
+        <option value="auto" selected>Auto: deteksi muka di tiap clip (disarankan)</option>
         <option value="blur">Blur: video utuh, latar blur</option>
         <option value="crop">Crop: potong tengah, penuh</option>
-        <option value="facecam">Facecam di atas, gameplay di bawah</option>
+        <option value="facecam">Facecam manual: tandai posisinya sendiri</option>
       </select>
+      <p class="muted" id="layout-note" style="margin:6px 0 0">Auto mencari muka di setiap clip: facecam di mana pun (kiri, kanan, atas, bawah) dipotong dan ditaruh di atas gameplay. Kamera penuh dipotong vertikal mengikuti muka. Tidak ada muka: layout blur.</p>
       <div id="facecam-box" class="hidden">
         <p class="muted" style="margin:8px 0 6px">Di mana facecam di video aslinya? Hasilnya facecam selalu di atas.</p>
         <button class="full" id="btn-mark" style="margin-top:0">Tandai facecam di gambar…</button>
@@ -165,8 +167,13 @@
         <label for="facecam">Posisi (x,y,lebar,tinggi dalam piksel; terisi otomatis, atau ketik sendiri)</label>
         <input type="text" id="facecam" placeholder="1440,810,480,270">
       </div>
-      <label class="check"><input type="checkbox" id="captions" checked> Caption otomatis</label>
-      <label class="check"><input type="checkbox" id="hook" checked> Teks hook 3 detik pertama</label>
+      <label for="capmode">Caption</label>
+      <select id="capmode">
+        <option value="none" selected>Tanpa caption (edit manual sendiri)</option>
+        <option value="srt">File .srt saja, untuk diedit di CapCut</option>
+        <option value="burn">Tempel caption otomatis di video</option>
+      </select>
+      <label class="check"><input type="checkbox" id="hook"> Teks hook 3 detik pertama</label>
     </section>
 
     <section class="card">
@@ -215,7 +222,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 function renderOpts() {
   return { layout: $("layout").value, facecam: $("facecam").value,
-           captions: $("captions").checked, hook: $("hook").checked,
+           caption_mode: $("capmode").value, hook: $("hook").checked,
            whisper_model: $("model").value, lang: $("lang").value, prompt: $("prompt").value,
            cookies: $("cookies").value };
 }
@@ -266,6 +273,7 @@ function drawProject(p) {
         <h3>${esc(c.title || "(tanpa judul)")}</h3>
         ${c.hook ? `<div class="hook">“${esc(c.hook)}”</div>` : ""}
         ${c.reason ? `<div class="muted">${esc(c.reason)}</div>` : ""}
+        ${c.layout_used ? `<div class="muted" style="font-size:12px;margin-top:4px">Layout: ${esc(c.layout_used)}</div>` : ""}
       </div>
       <div class="foot">
         <label class="check" style="margin:0"><input type="checkbox" class="pick" ${selected.has(c.id) ? "checked" : ""}> pilih</label>
@@ -339,13 +347,20 @@ $("btn-choose").onclick = async () => {
 $("btn-open-out").onclick = () => api("/api/open", {});
 $("layout").onchange = () => {
   $("facecam-box").classList.toggle("hidden", $("layout").value !== "facecam");
-  try { localStorage.setItem("cf-layout", $("layout").value); } catch {}
+  $("layout-note").classList.toggle("hidden", $("layout").value !== "auto");
+  try { localStorage.setItem("cf-layout2", $("layout").value); } catch {}
 };
+$("capmode").onchange = () => { try { localStorage.setItem("cf-capmode", $("capmode").value); } catch {} };
+$("hook").onchange = () => { try { localStorage.setItem("cf-hook", $("hook").checked ? "1" : ""); } catch {} };
 $("facecam").onchange = () => { try { localStorage.setItem("cf-facecam", $("facecam").value); } catch {} };
 try {
-  const l = localStorage.getItem("cf-layout"), f = localStorage.getItem("cf-facecam");
-  if (l) { $("layout").value = l; $("facecam-box").classList.toggle("hidden", l !== "facecam"); }
+  const l = localStorage.getItem("cf-layout2"), f = localStorage.getItem("cf-facecam");
+  const cm = localStorage.getItem("cf-capmode"), hk = localStorage.getItem("cf-hook");
+  if (l) { $("layout").value = l; $("facecam-box").classList.toggle("hidden", l !== "facecam");
+           $("layout-note").classList.toggle("hidden", l !== "auto"); }
   if (f) $("facecam").value = f;
+  if (cm) $("capmode").value = cm;
+  if (hk) $("hook").checked = true;
 } catch {}
 
 // ---------- facecam marker

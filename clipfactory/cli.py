@@ -12,6 +12,7 @@ from pathlib import Path
 from . import __version__
 from .captions import clip_words, write_all
 from .picker import pick
+from .facedetect import describe, log_plan, plan_layout
 from .render import contact_sheet, render_clip
 from .remote import download_audio, download_section, fetch_info, fetch_transcript, is_url, project_name
 from .transcribe import transcribe, whisper_available
@@ -84,15 +85,31 @@ def do_render(out: Path, video, transcript: dict, clips, ids, a) -> None:
             local = dict(c, start=c["start"] - offset, end=c["end"] - offset)
             src_info = (src, offset)
         ass = None
-        if a.captions:
-            words = _clip_words_for(c, transcript, src_info, a, out)
+        if a.captions or a.srt or a.hook:
+            words = _clip_words_for(c, transcript, src_info, a, out) if (a.captions or a.srt) else []
             files = write_all(words, stem, c["end"] - c["start"], hook=c["hook"] if a.hook else "",
                               font=a.font, upper=not a.no_upper)
-            ass = files["ass"]
+            if a.captions or a.hook:
+                ass = files["ass"]
+            else:  # .srt only: nothing is burned in
+                files["ass"].unlink(missing_ok=True)
+            if not (a.captions or a.srt):  # hook only: no caption files to keep
+                files["srt"].unlink(missing_ok=True)
+                files["txt"].unlink(missing_ok=True)
+            if a.hook and not a.captions:  # hook burned, captions not
+                files["ass"].write_text("\n".join(ln for ln in files["ass"].read_text(encoding="utf-8").splitlines()
+                                                  if not ln.startswith("Dialogue: 0,")) + "\n", encoding="utf-8")
+        layout, facecam, center_x = a.layout, a.facecam, 0.5
+        if a.layout == "auto":
+            plan = plan_layout(src, local["start"], local["end"])
+            log_plan(c["id"], plan)
+            layout, facecam, center_x = plan["layout"], plan.get("facecam"), plan.get("center_x", 0.5)
+            c["layout_used"] = describe(plan)
         mp4 = stem.with_suffix(".mp4")
         log(f"render #{c['id']} ({mmss(c['start'])}-{mmss(c['end'])}) ...")
         with Timer() as t:
-            render_clip(src, local, mp4, layout=a.layout, facecam=a.facecam, ass=ass, encoder=a.encoder)
+            render_clip(src, local, mp4, layout=layout, facecam=facecam, ass=ass, encoder=a.encoder,
+                        center_x=center_x)
         c["render_secs"] = round(t.seconds, 1)
         c["file"] = str(mp4.relative_to(out))
         log(f"  selesai dalam {t.seconds:.1f} detik -> {mp4}")
@@ -194,8 +211,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     def render_opts(sp):
         sp.add_argument("--captions", action="store_true", help="bakar caption otomatis ke video")
+        sp.add_argument("--srt", action="store_true", help="buat file .srt/.txt caption saja (untuk edit manual), tidak dibakar")
         sp.add_argument("--hook", action="store_true", help="tampilkan teks hook di 3 detik pertama")
-        sp.add_argument("--layout", choices=["blur", "crop", "facecam"], default="blur")
+        sp.add_argument("--layout", choices=["auto", "blur", "crop", "facecam"], default="auto",
+                        help="auto = deteksi muka per clip (default)")
         sp.add_argument("--facecam", type=_facecam, help="x,y,w,h area facecam di video asli (layout facecam)")
         sp.add_argument("--encoder", choices=["auto", "videotoolbox", "x264"], default="auto")
         sp.add_argument("--font", default="Arial")

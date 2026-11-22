@@ -151,6 +151,14 @@ if ! "$VPY" -m pip install --prefer-binary -r requirements.txt >>"$LOG" 2>&1; th
 fi
 "$VPY" -m pip install -q --prefer-binary -U "yt-dlp[default]" >>"$LOG" 2>&1 && ok "yt-dlp $("$VPY" -m yt_dlp --version 2>/dev/null) (selalu diupdate)" \
   || warn "update yt-dlp gagal (lanjut)"
+YUNET="$APP/clipfactory/models/face_detection_yunet_2023mar.onnx"
+if [ ! -s "$YUNET" ]; then
+  mkdir -p "$(dirname "$YUNET")"
+  fetch "https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx" "$YUNET" \
+    && ok "model deteksi muka (YuNet) diunduh" || { rm -f "$YUNET"; warn "model YuNet gagal diunduh; pakai detektor bawaan OpenCV"; }
+fi
+"$VPY" -c "import cv2; print('opencv', cv2.__version__)" >>"$LOG" 2>&1 && ok "OpenCV (deteksi muka)" \
+  || warn "OpenCV tidak bisa di-import; layout auto akan pakai blur"
 "$VPY" -c "import whisper, torch; print('whisper OK, torch', torch.__version__)" >>"$LOG" 2>&1 \
   || fail "Whisper terpasang tapi tidak bisa di-import."
 ok "Whisper + torch $("$VPY" -c 'import torch; print(torch.__version__)' 2>/dev/null)"

@@ -43,7 +43,7 @@ Setiap buka Terminal baru: `cd impala-clip-factory && source .venv/bin/activate`
 **Scan + caption + render 3 teratas** (tes pertama):
 
 ```bash
-python -m clipfactory scan ~/Movies/vod.mp4 --captions --hook --render-top 3
+python -m clipfactory scan ~/Movies/vod.mp4 --render-top 3
 ```
 
 Hasilnya ada di `out/<nama video>/`:
@@ -65,9 +65,14 @@ python -m clipfactory render out/vod --ids 2,5 --captions --hook
 
 ### Layout
 
-- `--layout blur` (default): video utuh di tengah, latar blur.
+- `--layout auto` (default): deteksi muka di tiap clip. Facecam di posisi mana pun dipotong dan ditaruh di atas gameplay; kamera penuh dipotong vertikal mengikuti muka; tanpa muka pakai blur. Keputusan per clip tercatat di halaman web.
+- `--layout blur`: video utuh di tengah, latar blur.
 - `--layout crop`: potong tengah, memenuhi layar.
-- `--layout facecam --facecam x,y,w,h`: facecam di atas, gameplay di bawah. `x,y,w,h` adalah posisi kotak facecam di video asli dalam piksel. Contoh untuk facecam di pojok kanan bawah video 1920×1080: `--facecam 1440,700,480,380`.
+- `--layout facecam --facecam x,y,w,h`: posisi facecam ditentukan manual (piksel di video asli).
+
+### Caption
+
+Default: **tanpa caption** (untuk edit manual). `--srt` membuat file `.srt` + `_capcut.txt` saja tanpa ditempel; `--captions` menempel caption otomatis di video; `--hook` menempel teks hook 3 detik pertama.
 
 ### Opsi berguna
 

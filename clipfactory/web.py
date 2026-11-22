@@ -266,7 +266,9 @@ def scan_argv(o: dict) -> tuple[str, list[str]]:
 
 
 def render_flags(o: dict) -> list[str]:
-    flags = ["--layout", o.get("layout", "blur"), "--whisper-model", o.get("whisper_model", "base"),
+    if o.get("layout", "auto") not in ("auto", "blur", "crop", "facecam"):
+        raise ValueError("layout tidak dikenal")
+    flags = ["--layout", o.get("layout", "auto"), "--whisper-model", o.get("whisper_model", "base"),
              "--lang", o.get("lang", "id")]
     if o.get("prompt"):
         flags += ["--prompt", o["prompt"]]
@@ -276,9 +278,12 @@ def render_flags(o: dict) -> list[str]:
         flags += ["--cookies", o["cookies"]]
     if Path("kamus.txt").exists():
         flags += ["--kamus", "kamus.txt"]
-    if o.get("captions", True):
+    cap = o.get("caption_mode", "none")
+    if cap == "burn":
         flags.append("--captions")
-    if o.get("hook", True):
+    elif cap == "srt":
+        flags.append("--srt")
+    if o.get("hook"):
         flags.append("--hook")
     if o.get("layout") == "facecam":
         fc = str(o.get("facecam", "")).replace(" ", "")
