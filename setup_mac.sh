@@ -28,8 +28,15 @@ add_path_line() {  # add a PATH line to both zsh and bash profiles, once
     grep -qxF "$line" "$f" || echo "$line" >> "$f"
   done
 }
-fetch() {  # fetch URL FILE: download with retries, fail on HTTP errors
-  curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 -o "$2" "$1" >>"$LOG" 2>&1
+fetch() {  # fetch URL FILE: download with retries, fail on HTTP errors or if it stalls
+  curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 --speed-limit 1024 --speed-time 60 \
+    -o "$2" "$1" >>"$LOG" 2>&1
+}
+pip_show() {  # run pip, keep full output in the log, show the package lines live
+  "$VPY" -m pip "$@" --progress-bar off 2>&1 | tee -a "$LOG" \
+    | grep --line-buffered -E "^(Collecting|Downloading|Installing collected|Successfully installed|ERROR)" \
+    | awk '{ sub(/ \(from .*/, ""); print "      " substr($0, 1, 84); fflush() }'
+  return "${PIPESTATUS[0]}"
 }
 
 step "0/5 Cek Mac"
@@ -144,9 +151,10 @@ if [ ! -x .venv/bin/python ]; then
 fi
 VPY="$APP/.venv/bin/python"
 "$VPY" -m pip install -q --upgrade pip setuptools wheel >>"$LOG" 2>&1 || warn "upgrade pip gagal (lanjut)"
-if ! "$VPY" -m pip install --prefer-binary -r requirements.txt >>"$LOG" 2>&1; then
+echo "    (progres di bawah; baris 'Downloading' yang besar bisa makan beberapa menit)"
+if ! pip_show install --prefer-binary -r requirements.txt; then
   warn "Install pertama gagal, coba sekali lagi tanpa cache ..."
-  "$VPY" -m pip install --prefer-binary --no-cache-dir -r requirements.txt >>"$LOG" 2>&1 \
+  pip_show install --prefer-binary --no-cache-dir -r requirements.txt \
     || fail "pip install gagal. Baris error ada di log."
 fi
 "$VPY" -m pip install -q --prefer-binary -U "yt-dlp[default]" >>"$LOG" 2>&1 && ok "yt-dlp $("$VPY" -m yt_dlp --version 2>/dev/null) (selalu diupdate)" \
