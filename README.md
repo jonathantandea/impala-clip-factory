@@ -16,7 +16,7 @@ Script memasang ffmpeg, Python 3.12, Whisper, lalu tes render kecil. Aman dijala
 
 Momen dipilih dari sinyal penonton, bukan tebakan: lonjakan **live chat** (chat replay YouTube/Twitch, termasuk WKWK, ANJIR, emoji, "clip"), **Most replayed** YouTube, **puncak suara** (tawa, teriakan) dan **kata reaksi** di transkrip. Tiap clip dibuat dengan setup sebelum momen dan payoff sesudahnya, dipotong di batas kalimat.
 
-**Penilaian konteks oleh Claude (opsional):** kalau Mac punya API key Anthropic (`export ANTHROPIC_API_KEY=...` di `~/.zprofile`), Claude membaca transkrip tiap kandidat, membuang yang tidak bisa berdiri sendiri, merapikan awal/akhir, dan menulis judul + hook. Biaya kecil per video. Tanpa API key: unduh `untuk_claude.txt` dari halaman project, kirim ke Claude di chat, lalu tempel jawabannya di kotak import.
+**Penilaian konteks oleh Claude (opsional, berbayar):** default-nya mati (mode gratis). Kalau Mac punya API key Anthropic dan kamu mencentang "Pakai Claude API" (atau `--ai`), Claude membaca transkrip tiap kandidat, membuang yang tidak bisa berdiri sendiri, merapikan awal/akhir, dan menulis judul + hook. Biaya kecil per video. Tanpa API key: unduh `untuk_claude.txt` dari halaman project, kirim ke Claude di chat, lalu tempel jawabannya di kotak import.
 
 **Facecam:** layout auto mendeteksi muka di semua clip lalu memakai posisi facecam yang paling disepakati, jadi clip yang deteksinya meleset tetap benar.
 

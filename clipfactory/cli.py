@@ -222,7 +222,7 @@ def cmd_scan(a) -> None:
             for i, c in enumerate(cands, 1):
                 c["id"] = i
             export_for_claude(out / "untuk_claude.txt", cands, segs, a.min_len, a.max_len)
-            judged = None if a.no_ai else judge(cands, segs, min_len=a.min_len, max_len=a.max_len, top=a.top)
+            judged = judge(cands, segs, min_len=a.min_len, max_len=a.max_len, top=a.top) if a.ai and not a.no_ai else None
             clips = judged if judged else cands[:a.top]
             picker = "sinyal (" + ", ".join(x for x, ok in [("chat", bool(chat)), ("most replayed", bool((info or {}).get("heatmap"))),
                                                            ("suara", bool(audio)), ("kata reaksi", True)] if ok) + ")"
@@ -297,7 +297,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="signals = chat, most replayed, suara, kata reaksi (default); ollama = LLM lokal")
     s.add_argument("--no-chat", action="store_true", help="jangan unduh chat replay")
     s.add_argument("--chat-timeout", type=float, default=12, help="menit maksimal download chat (default 12)")
-    s.add_argument("--no-ai", action="store_true", help="jangan pakai Claude API walau API key ada")
+    s.add_argument("--ai", action="store_true", help="pakai Claude API untuk menilai konteks (BERBAYAR, butuh API key)")
+    s.add_argument("--no-ai", action="store_true", help=argparse.SUPPRESS)
     s.add_argument("--top", type=int, default=8, help="jumlah kandidat")
     s.add_argument("--min-len", type=int, default=20)
     s.add_argument("--max-len", type=int, default=60)

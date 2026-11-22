@@ -264,6 +264,8 @@ def scan_argv(o: dict) -> tuple[str, list[str]]:
             "--render-top", str(int(o.get("render_top", 0)))]
     if o.get("use_llm"):
         argv += ["--picker", "ollama"]
+    if o.get("use_ai"):
+        argv.append("--ai")
     return name, argv + render_flags(o)
 
 

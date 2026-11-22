@@ -152,6 +152,8 @@
         <div><label for="maxlen">Maks detik</label><input type="number" id="maxlen" value="60" min="10"></div>
       </div>
       <p class="muted" style="margin:10px 0 4px">Momen dipilih dari sinyal penonton: lonjakan live chat, Most replayed, puncak suara, dan kata reaksi (wkwk, anjir, gila…). Setiap clip diberi setup sebelum dan payoff sesudah momennya.</p>
+      <label class="check"><input type="checkbox" id="ai"> Pakai Claude API untuk menilai konteks (berbayar)</label>
+      <p class="muted" id="ai-note" style="margin:0 0 4px">Mati = gratis. Penilaian konteks lewat "Unduh file untuk Claude" di halaman project.</p>
       <label class="check"><input type="checkbox" id="llm"> Pakai Ollama (LLM lokal) sebagai gantinya</label>
       <p class="muted" id="llm-note" style="margin:0"></p>
       <button class="primary full" id="btn-scan">Mulai scan</button>
@@ -300,8 +302,13 @@ async function loadStatus() {
   $("llm").disabled = !s.ollama; $("llm").checked = s.ollama;
   $("llm").checked = false;
   $("llm-note").textContent = s.ollama ? "" : "Ollama tidak terpasang di Mac ini.";
-  $("pill-claude").classList.toggle("on", s.claude);
-  $("pill-claude").textContent = s.claude ? "Claude API: aktif (menilai konteks)" : "Claude API: tidak ada (pakai Export)";
+  $("pill-claude").classList.add("on");
+  $("pill-claude").textContent = "Mode gratis";
+  $("ai").disabled = !s.claude;
+  $("ai-note").textContent = s.claude ? "Mati = gratis. Dicentang = Claude API menilai konteks (memotong saldo API)."
+    : "Tidak ada API key: penilaian konteks lewat \"Unduh file untuk Claude\" di halaman project (gratis).";
+  const syncPill = () => { $("pill-claude").textContent = $("ai").checked ? "Claude API: berbayar" : "Mode gratis"; $("pill-claude").classList.toggle("on", !$("ai").checked); };
+  $("ai").onchange = syncPill; syncPill();
   $("pill-kamus").classList.toggle("on", s.kamus);
   $("pill-kamus").textContent = s.kamus ? "kamus.txt: aktif" : "kamus.txt: tidak ada";
   $("btn-choose").classList.toggle("hidden", !s.mac);
@@ -400,7 +407,7 @@ $("btn-scan").onclick = async () => {
     const r = await api("/api/scan", {
       video: $("video").value,
       top: $("top").value, render_top: $("rtop").value, min_len: $("minlen").value, max_len: $("maxlen").value,
-      use_llm: $("llm").checked, ...renderOpts() });
+      use_llm: $("llm").checked, use_ai: $("ai").checked, ...renderOpts() });
     current = r.project; pollSoon();
   } catch (e) { showError(e.message); }
 };
