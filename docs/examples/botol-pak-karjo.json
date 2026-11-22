@@ -1,0 +1,53 @@
+{
+  "title": "Botol Pak Karjo",
+  "voice": "brian",
+  "language": "id",
+  "music": "lofi",
+  "keywords": ["karjo", "burung", "udin", "orang-orangan", "kepalanya", "botol", "bambu", "berbunyi", "tuk", "kabur", "panen", "banyak", "sekarung", "suaranya", "kaget", "hinggap", "burung-burung", "ternyata"],
+  "script": [
+    "Di desa ini, cuma sawah Pak Karjo yang tidak pernah diserbu burung.",
+    "Tetangganya, Pak Udin, memasang orang-orangan sawah.",
+    "Tapi burungnya malah hinggap di kepalanya.",
+    "Pak Karjo cuma menggantung botol bekas di batang bambu.",
+    "Setiap angin bertiup, botolnya berbunyi.",
+    "Tuk, tuk, tuk.",
+    "Burung-burung kaget, lalu kabur.",
+    "Waktu panen, padi Pak Karjo paling banyak.",
+    "Besoknya, Pak Udin datang membawa sekarung botol bekas.",
+    "Ternyata, burung tidak takut pada orangnya.",
+    "Burung takut pada suaranya."
+  ],
+  "characters": {
+    "karjo": { "shirt": "hijau", "sarong": "coklat", "hat": "caping" },
+    "udin": { "shirt": "coklat", "sarong": "abu", "hat": "peci", "mustache": true, "blush": true }
+  },
+  "world": {
+    "props": [
+      { "type": "bamboo_pole", "id": "botol", "x": 2.2, "z": -2.2, "bottles": 5 },
+      { "type": "scarecrow", "id": "orangan", "x": 13, "z": -5, "fallen": true },
+      { "type": "sacks", "id": "panen", "x": -1.6, "z": -0.6, "count": 6, "hidden": true },
+      { "type": "bamboo_pole", "id": "botol2", "x": -3.5, "z": -6.5, "bottles": 4, "hidden": true },
+      { "type": "bamboo_pole", "id": "botol3", "x": 11, "z": -7.5, "bottles": 4, "hidden": true }
+    ]
+  },
+  "scenes": [
+    { "shot": "establishing", "cast": [{ "who": "karjo", "at": [0, -0.6], "pose": "hands_hips" }] },
+    { "shot": "medium", "focus": "orangan", "side": -1, "events": [{ "type": "raise", "target": "orangan" }],
+      "cast": [{ "who": "udin", "at": [12.25, -4.35], "face": "orangan", "pose": "push" }] },
+    { "shot": "closeup", "focus": "orangan", "events": [{ "type": "birds_land", "target": "orangan" }],
+      "cast": [{ "who": "udin", "at": [12.35, -4.2], "face": "camera", "pose": "hands_head", "mood": "frown" }] },
+    { "shot": "medium", "focus": "karjo", "cast": [{ "who": "karjo", "at": [3.05, -2.95], "pose": "reach_up" }] },
+    { "shot": "low", "focus": "botol", "events": [{ "type": "wind", "strength": 0.32 }, { "type": "birds_arrive", "target": "A" }] },
+    { "shot": "closeup", "focus": "botol", "events": [{ "type": "wind", "strength": 0.32 }, { "type": "knock", "target": "botol", "words": ["tuk"] }] },
+    { "shot": "medium", "focus": "karjo", "events": [{ "type": "birds_flee" }],
+      "cast": [{ "who": "karjo", "at": [0.55, -0.6], "pose": "wave", "mood": "grin" }] },
+    { "shot": "wide", "focus": "karjo", "events": [{ "type": "harvest" }, { "type": "appear", "target": "panen" }],
+      "cast": [{ "who": "karjo", "at": [0.3, -0.6], "pose": "cheer", "mood": "grin" }] },
+    { "shot": "track", "focus": "udin",
+      "cast": [{ "who": "udin", "at": [11.5, -0.6], "walk_to": [2.7, -0.6], "pose": "carry" },
+               { "who": "karjo", "at": [0.9, -0.6], "face": "udin" }] },
+    { "shot": "medium", "cast": [{ "who": "karjo", "at": [0.9, -0.6], "mood": "grin" }, { "who": "udin", "at": [2.4, -0.6], "pose": "hold_up", "mood": "grin" }] },
+    { "shot": "high", "focus": "karjo", "events": [{ "type": "appear", "target": "botol2" }, { "type": "appear", "target": "botol3" }, { "type": "birds_land", "target": "orangan" }],
+      "cast": [{ "who": "karjo", "at": [0.9, -0.6] }, { "who": "udin", "at": [2.4, -0.6], "pose": "wave" }] }
+  ]
+}

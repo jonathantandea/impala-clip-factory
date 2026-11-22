@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from . import story
 from .remote import cached_info, frame_from_link, is_url, project_name
 from .util import LOG_SINKS, log, mmss, probe_duration, probe_size, read_json, run, write_json
 
@@ -419,6 +420,21 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(JOB.snapshot())
             if parts[:2] == ["api", "thumb"] and len(parts) == 4:
                 return self._file(thumb(parts[2], int(parts[3].split(".")[0])), "image/jpeg")
+            if parts and parts[0] == "story":
+                f = (story.STORY_DIR / Path(*parts[1:])).resolve() if len(parts) > 1 else story.STORY_DIR / "index.html"
+                if story.STORY_DIR.resolve() not in f.parents or not f.is_file():
+                    return self._json({"error": "tidak ditemukan"}, 404)
+                ctype = {".js": "text/javascript", ".html": "text/html; charset=utf-8", ".woff2": "font/woff2"}.get(f.suffix)
+                return self._file(f, ctype)
+            if len(parts) == 4 and parts[:2] == ["motion", "projects"]:
+                f = (story.project_dir(parts[2]) / parts[3]).resolve()
+                if not f.is_file() or story.PROJECTS.resolve() not in f.parents:
+                    return self._json({"error": "file tidak ada"}, 404)
+                return self._file(f)
+            if parts == ["api", "story", "list"]:
+                return self._json(story.list_projects())
+            if parts == ["api", "story", "key"]:
+                return self._json(story.key_status())
             if parts == ["api", "motion"]:
                 return self._json(motion_list())
             if parts[0] == "motion" and len(parts) == 3 and parts[1] in ("videos", "briefs"):
@@ -439,6 +455,11 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parts = [p for p in urlparse(self.path).path.strip("/").split("/") if p]
         try:
+            if parts == ["api", "story", "render", "frame"]:
+                q = parse_qs(urlparse(self.path).query)
+                n = int(self.headers.get("Content-Length") or 0)
+                story.render_frame(q["project"][0], int(q["i"][0]), self.rfile.read(n))
+                return self._json({"ok": True})
             if parts == ["api", "motion", "upload"]:
                 name = Path(unquote(self.headers.get("X-Filename", "video.mp4"))).name
                 if not name.lower().endswith((".mp4", ".mov")):
@@ -456,6 +477,21 @@ class Handler(BaseHTTPRequestHandler):
                         left -= len(chunk)
                 return self._json({"ok": True, "name": dst.stem})
             body = self._body()
+            if parts == ["api", "story", "create"]:
+                return self._json({"ok": True, "name": story.create(body.get("spec", ""))})
+            if parts == ["api", "story", "voice"]:
+                return self._json({"ok": True, **story.make_voice(body["project"])})
+            if parts == ["api", "story", "key"]:
+                story.save_key(body.get("key", ""))
+                return self._json({"ok": True})
+            if parts == ["api", "story", "render", "start"]:
+                story.render_start(body["project"], int(body.get("fps", 30)), int(body.get("frames", 0)))
+                return self._json({"ok": True})
+            if parts == ["api", "story", "render", "finish"]:
+                return self._json({"ok": True, "file": story.render_finish(body["project"])})
+            if parts == ["api", "story", "render", "cancel"]:
+                story.render_cancel(body.get("project", ""))
+                return self._json({"ok": True})
             if parts == ["api", "motion", "brief"]:
                 return self._json({"ok": True, "name": save_brief(body)})
             if parts == ["api", "motion", "open"]:

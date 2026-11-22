@@ -46,6 +46,13 @@ Lewat Terminal: `python -m clipfactory scan "https://www.youtube.com/watch?v=...
 
 Untuk video motion/cerita 3D (20-120 detik, 9:16). Isi **Brief baru** (judul, gaya, durasi, suara, script, arahan), klik **Simpan brief**, lalu **Salin brief** dan kirim ke Claude di chat. Video jadinya diunduh dari chat lalu ditambahkan lewat **Tambah video…** supaya semua tersimpan di `motion/videos` dan bisa diputar/diunduh dari halaman.
 
+### AI Generation (cerita 3D, dirender di Mac sendiri)
+
+1. Kirim brief/script ke Claude di chat; Claude membalas **naskah adegan** (JSON, format: `docs/scene-format.md`, contoh: `docs/examples/botol-pak-karjo.json`).
+2. Motion Factory → tempel di **AI Generation: naskah adegan** → **Buat project**.
+3. Isi sekali **API key ElevenLabs** (akun gratis: 10.000 karakter/bulan; lisensi free tier non-komersial). Key disimpan di `~/.impala/elevenlabs.key`.
+4. **1. Buat suara** → **2. Preview & Render**: browser merender frame demi frame, ffmpeg menggabungkan video + narasi + musik (lofi, ceria, desa; musik orisinal bebas royalti). Hasil masuk galeri.
+
 ## Pemakaian lewat Terminal
 
 Setiap buka Terminal baru: `cd impala-clip-factory && source .venv/bin/activate`.
