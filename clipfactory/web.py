@@ -162,7 +162,7 @@ def thumb(name: str, cid: int) -> Path:
     out.parent.mkdir(exist_ok=True)
     src, t = data["video"], (c["start"] + c["end"]) / 2
     if is_url(src):  # link project: only downloaded pieces are local
-        piece = d / "src" / f"clip_{cid:02d}.mp4"
+        piece = d / "src" / f"clip_{cid:02d}_{int(c['start'])}-{int(c['end'])}.mp4"
         if not piece.exists():
             raise FileNotFoundError("belum diunduh")
         src, t = str(piece), (c["end"] - c["start"]) / 2

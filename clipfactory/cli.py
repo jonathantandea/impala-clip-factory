@@ -72,7 +72,7 @@ def _prepare(out: Path, video, c, url, a):
     """Local source for one clip (downloads the section in link mode)."""
     if not url:
         return Path(video), c, None
-    src = out / "src" / f"clip_{c['id']:02d}.mp4"
+    src = out / "src" / f"clip_{c['id']:02d}_{int(c['start'])}-{int(c['end'])}.mp4"   # range in the name: re-scans never reuse a stale piece
     src.parent.mkdir(exist_ok=True)
     if not src.exists():
         log(f"download potongan #{c['id']} ({mmss(c['start'])}-{mmss(c['end'])}) saja (1-3 menit di Mac lama) ...")

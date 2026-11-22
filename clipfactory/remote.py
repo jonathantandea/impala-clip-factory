@@ -165,17 +165,29 @@ def download_section(url: str, start: float, end: float, out: Path, cookies: str
     s = max(0.0, start - PAD)
     e = end + PAD
     if out.exists() and out.stat().st_size > 0:
-        return s
+        return actual_start(out, s, e)
     fmt = (f"bv*[height<={max_height}][ext=mp4]+ba[ext=m4a]/bv*[height<={max_height}]+ba/"
            f"b[height<={max_height}]/b")
     tmp = out.with_name(out.stem + ".dl.%(ext)s")
-    _ytdlp(["-f", fmt, "--download-sections", f"*{s:.2f}-{e:.2f}", "--force-keyframes-at-cuts",
+    # stream copy (no re-encode): fast on old Macs; MP4 edit lists keep the cut frame-accurate
+    _ytdlp(["-f", fmt, "--download-sections", f"*{s:.2f}-{e:.2f}",
             "--merge-output-format", "mp4", "-o", str(tmp), url], cookies)
     got = [p for p in out.parent.glob(out.stem + ".dl.*") if p.suffix not in (".part", ".ytdl")]
     if not got:
         raise RuntimeError("download potongan video gagal")
     got[0].rename(out)
-    return s
+    return actual_start(out, s, e)
+
+
+def actual_start(path: Path, s: float, e: float) -> float:
+    """If the file runs longer than asked (container without an edit list started at an earlier
+    keyframe), the extra time is at the front: shift the start back by it."""
+    try:
+        from .util import probe_duration
+        extra = probe_duration(path) - (e - s)
+    except (RuntimeError, ValueError):
+        return s
+    return s - extra if extra > 0.5 else s
 
 
 _INFO_CACHE: dict = {}
