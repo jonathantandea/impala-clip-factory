@@ -87,13 +87,22 @@
     box-shadow: 0 0 0 9999px rgba(0,0,0,.35); pointer-events: none; }
   .ph { aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; background: var(--code);
     color: var(--muted); font-size: 13px; }
+  .tabs { display: flex; gap: 4px; background: var(--bg); padding: 4px; border-radius: 10px; }
+  .tab { border: 0; background: transparent; padding: 7px 14px; border-radius: 8px; color: var(--muted); font-weight: 600; }
+  .tab.active { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .btn-like { font: inherit; font-size: 15px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; color: var(--ink); margin: 0; }
+  .btn-like:hover { border-color: var(--muted); }
   details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Clip <span>Factory</span></h1>
-  <div class="pills">
+  <h1>Impala <span>Factory</span></h1>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" id="tab-clip" role="tab" aria-selected="true">Clip Factory</button>
+    <button class="tab" id="tab-motion" role="tab" aria-selected="false">Motion Factory</button>
+  </nav>
+  <div class="pills" id="clip-pills">
     <span class="pill" id="pill-claude">Claude API: cek…</span>
     <span class="pill" id="pill-ollama">Ollama: cek…</span>
     <span class="pill" id="pill-kamus">kamus.txt</span>
@@ -101,7 +110,7 @@
   </div>
 </header>
 
-<main>
+<main id="clip-view">
   <aside>
     <section class="card">
       <h2>1 · Video baru</h2>
@@ -194,6 +203,59 @@
 
     <div id="detail">
       <div class="card empty">Pilih video di kiri lalu klik <b>Mulai scan</b>.<br>Hasilnya muncul di sini.</div>
+    </div>
+  </section>
+</main>
+
+<main id="motion-view" class="hidden">
+  <aside>
+    <section class="card">
+      <h2>Brief baru</h2>
+      <label for="m-title">Judul</label>
+      <input type="text" id="m-title" placeholder="Botol Pak Karjo">
+      <div class="row">
+        <div><label for="m-style">Gaya</label>
+          <select id="m-style">
+            <option value="cerita3d">Cerita 3D (desa, karakter)</option>
+            <option value="kinetic">Kinetic text / motion</option>
+          </select></div>
+        <div><label for="m-dur">Durasi (detik)</label><input type="number" id="m-dur" value="45" min="20" max="120"></div>
+      </div>
+      <div class="row">
+        <div><label for="m-voice">Suara</label>
+          <select id="m-voice">
+            <option>Brian (laki-laki, berat)</option><option>Sarah (perempuan, lembut)</option>
+            <option>Rekaman suara sendiri</option><option>Tanpa voice over</option>
+          </select></div>
+        <div><label for="m-brand">Logo</label>
+          <select id="m-brand"><option>tanpa</option><option>dengan logo di akhir</option></select></div>
+      </div>
+      <label for="m-script">Script</label>
+      <textarea id="m-script" style="min-height:180px;font-family:inherit;font-size:14px" placeholder="Tulis narasinya di sini, satu kalimat per baris..."></textarea>
+      <label for="m-notes">Arahan (karakter, tempat, adegan penting)</label>
+      <textarea id="m-notes" style="font-family:inherit;font-size:14px" placeholder="Pak Karjo pakai caping, sawah hijau, akhir lucu..."></textarea>
+      <button class="primary full" id="btn-brief">Simpan brief</button>
+      <p class="muted" id="brief-msg" style="margin:8px 0 0"></p>
+    </section>
+    <section class="card">
+      <h2>Brief tersimpan</h2>
+      <ul class="projects" id="brief-list"><li class="muted">Belum ada.</li></ul>
+    </section>
+  </aside>
+  <section>
+    <div class="card">
+      <div class="toolbar">
+        <h2>Galeri video</h2>
+        <label class="btn-like"><input type="file" id="m-upload" accept="video/mp4,video/quicktime" hidden>Tambah video…</label>
+        <button id="btn-motion-folder">Buka folder</button>
+      </div>
+      <p class="muted" style="margin-top:-6px">Kirim brief ke Claude di chat. Video jadinya kamu unduh dari chat lalu tambahkan di sini supaya semua tersimpan rapi di <code>motion/videos</code>.</p>
+      <p class="muted" id="upload-msg"></p>
+      <div class="grid" id="motion-grid"><div class="empty">Belum ada video.</div></div>
+    </div>
+    <div class="card hidden" id="brief-view">
+      <div class="toolbar"><h2 id="brief-view-title">Brief</h2><button id="btn-copy" class="primary">Salin brief</button></div>
+      <pre id="brief-text" style="white-space:pre-wrap;font:13px/1.5 ui-monospace,Menlo,monospace;margin:0"></pre>
     </div>
   </section>
 </main>
@@ -515,6 +577,65 @@ loadProjects().then(() => {
   const first = document.querySelector(".projects li[data-name]");
   if (first) openProject(first.dataset.name);
 }).catch(() => {});
+
+// ---------- Motion Factory
+function showTab(which) {
+  const motion = which === "motion";
+  $("clip-view").classList.toggle("hidden", motion); $("motion-view").classList.toggle("hidden", !motion);
+  $("clip-pills").classList.toggle("hidden", motion);
+  $("tab-clip").classList.toggle("active", !motion); $("tab-motion").classList.toggle("active", motion);
+  $("tab-clip").setAttribute("aria-selected", String(!motion)); $("tab-motion").setAttribute("aria-selected", String(motion));
+  try { localStorage.setItem("cf-tab", which); } catch {}
+  if (motion) loadMotion();
+}
+$("tab-clip").onclick = () => showTab("clip");
+$("tab-motion").onclick = () => showTab("motion");
+let BRIEFS = [];
+async function loadMotion() {
+  const m = await api("/api/motion");
+  BRIEFS = m.briefs;
+  $("motion-grid").innerHTML = m.videos.length ? m.videos.map((v) => `
+    <article class="clip"><video src="${esc(v.url)}#t=0.5" controls preload="metadata" playsinline></video>
+      <div class="body"><h3>${esc(v.name)}</h3><div class="meta"><span>${v.mb} MB</span><span>${esc(v.date)}</span></div></div>
+      <div class="foot"><a href="${esc(v.url)}" download>Unduh</a></div></article>`).join("")
+    : '<div class="empty">Belum ada video. Tambahkan video dari chat dengan tombol Tambah video.</div>';
+  $("brief-list").innerHTML = m.briefs.length ? m.briefs.map((b, i) => `<li data-i="${i}"><b>${esc(b.name.replace(/^\d{8}-\d{4}-/, ""))}</b><span class="muted">${esc(b.date)}</span></li>`).join("")
+    : '<li class="muted">Belum ada.</li>';
+  document.querySelectorAll("#brief-list li[data-i]").forEach((li) => li.onclick = () => openBrief(Number(li.dataset.i)));
+}
+function openBrief(i) {
+  const b = BRIEFS[i]; if (!b) return;
+  $("brief-view").classList.remove("hidden");
+  $("brief-view-title").textContent = b.name.replace(/^\d{8}-\d{4}-/, "");
+  $("brief-text").textContent = b.text;
+  document.querySelectorAll("#brief-list li").forEach((li) => li.classList.toggle("active", Number(li.dataset.i) === i));
+}
+$("btn-copy").onclick = async () => {
+  const t = $("brief-text").textContent;
+  try { await navigator.clipboard.writeText(t); $("btn-copy").textContent = "Tersalin ✓"; }
+  catch { const r = document.createRange(); r.selectNodeContents($("brief-text")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); $("btn-copy").textContent = "Tekan Cmd+C"; }
+  setTimeout(() => { $("btn-copy").textContent = "Salin brief"; }, 1800);
+};
+$("btn-brief").onclick = async () => {
+  if (!$("m-script").value.trim()) { $("brief-msg").textContent = "Script masih kosong."; return; }
+  try {
+    await api("/api/motion/brief", { title: $("m-title").value, style: $("m-style").value, duration: $("m-dur").value,
+      voice: $("m-voice").value, branding: $("m-brand").value, script: $("m-script").value, notes: $("m-notes").value });
+    $("brief-msg").textContent = "Brief disimpan. Buka di kanan, klik Salin brief, lalu kirim ke Claude.";
+    await loadMotion(); openBrief(0);
+  } catch (e) { $("brief-msg").textContent = "Gagal: " + e.message; }
+};
+$("m-upload").onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  $("upload-msg").textContent = `Mengunggah ${f.name} (${(f.size / 1e6).toFixed(1)} MB)…`;
+  try {
+    const r = await fetch("/api/motion/upload", { method: "POST", headers: { "X-Filename": encodeURIComponent(f.name) }, body: f });
+    if (!r.ok) throw new Error((await r.json()).error);
+    $("upload-msg").textContent = `${f.name} ditambahkan.`; e.target.value = ""; loadMotion();
+  } catch (err) { $("upload-msg").textContent = "Gagal: " + err.message; }
+};
+$("btn-motion-folder").onclick = () => api("/api/motion/open", {});
+try { if (localStorage.getItem("cf-tab") === "motion") showTab("motion"); } catch {}
 poll();
 </script>
 </body>

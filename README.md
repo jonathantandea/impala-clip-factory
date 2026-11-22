@@ -42,6 +42,10 @@ Video member-only/age-restricted: pilih browser di opsi **Login**. Kalau YouTube
 
 Lewat Terminal: `python -m clipfactory scan "https://www.youtube.com/watch?v=..." --no-llm --render-top 2 --captions --hook`
 
+## Motion Factory (tab kedua di halaman yang sama)
+
+Untuk video motion/cerita 3D (20-120 detik, 9:16). Isi **Brief baru** (judul, gaya, durasi, suara, script, arahan), klik **Simpan brief**, lalu **Salin brief** dan kirim ke Claude di chat. Video jadinya diunduh dari chat lalu ditambahkan lewat **Tambah video…** supaya semua tersimpan di `motion/videos` dan bisa diputar/diunduh dari halaman.
+
 ## Pemakaian lewat Terminal
 
 Setiap buka Terminal baru: `cd impala-clip-factory && source .venv/bin/activate`.

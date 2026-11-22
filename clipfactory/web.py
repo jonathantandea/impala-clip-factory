@@ -24,6 +24,7 @@ from .remote import cached_info, frame_from_link, is_url, project_name
 from .util import LOG_SINKS, log, mmss, probe_duration, probe_size, read_json, run, write_json
 
 OUT = Path("out").resolve()
+MOTION = Path("motion").resolve()   # motion/briefs/*.md, motion/videos/*.mp4
 STATIC = Path(__file__).with_name("web_ui.html")
 
 
@@ -294,6 +295,40 @@ def render_flags(o: dict) -> list[str]:
     return flags
 
 
+# ----------------------------------------------------------------------------- Motion Factory
+STYLES = {"cerita3d": "Cerita 3D (desa/sawah, karakter kepala bulat, narasi + caption per kata)",
+          "kinetic": "Kinetic text / motion graphics (teks bergerak, timeline, UI)"}
+
+
+def motion_list():
+    (MOTION / "briefs").mkdir(parents=True, exist_ok=True)
+    (MOTION / "videos").mkdir(parents=True, exist_ok=True)
+    vids = sorted((MOTION / "videos").glob("*.mp4"), key=lambda p: p.stat().st_mtime, reverse=True)
+    briefs = sorted((MOTION / "briefs").glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return {
+        "videos": [{"name": v.stem, "url": f"/motion/videos/{v.name}", "mb": round(v.stat().st_size / 1e6, 1),
+                    "date": time.strftime("%d %b %H:%M", time.localtime(v.stat().st_mtime))} for v in vids],
+        "briefs": [{"name": b.stem, "text": b.read_text(encoding="utf-8"),
+                    "date": time.strftime("%d %b %H:%M", time.localtime(b.stat().st_mtime))} for b in briefs],
+    }
+
+
+def save_brief(o: dict) -> str:
+    title = (o.get("title") or "").strip() or "Tanpa judul"
+    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:40] or "brief"
+    style = STYLES.get(o.get("style"), o.get("style", ""))
+    text = (f"# Brief video: {title}\n\n"
+            f"- Gaya: {style}\n- Durasi: {o.get('duration', '30-60')} detik\n- Format: 9:16 (1080x1920)\n"
+            f"- Suara: {o.get('voice') or 'bebas'}\n- Caption: {o.get('captions') or 'per kata, kata kunci kuning'}\n"
+            f"- Branding/logo: {o.get('branding') or 'tanpa'}\n\n"
+            f"## Script\n\n{(o.get('script') or '').strip()}\n\n"
+            f"## Catatan / arahan\n\n{(o.get('notes') or '-').strip()}\n")
+    (MOTION / "briefs").mkdir(parents=True, exist_ok=True)
+    path = MOTION / "briefs" / f"{time.strftime('%Y%m%d-%H%M')}-{slug}.md"
+    path.write_text(text, encoding="utf-8")
+    return path.stem
+
+
 # ----------------------------------------------------------------------------- HTTP
 class Handler(BaseHTTPRequestHandler):
     server_version = "ClipFactory"
@@ -382,6 +417,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(JOB.snapshot())
             if parts[:2] == ["api", "thumb"] and len(parts) == 4:
                 return self._file(thumb(parts[2], int(parts[3].split(".")[0])), "image/jpeg")
+            if parts == ["api", "motion"]:
+                return self._json(motion_list())
+            if parts[0] == "motion" and len(parts) == 3 and parts[1] in ("videos", "briefs"):
+                f = (MOTION / parts[1] / parts[2]).resolve()
+                if MOTION not in f.parents or not f.is_file():
+                    return self._json({"error": "file tidak ada"}, 404)
+                return self._file(f)
             if parts[0] == "files" and len(parts) >= 3:
                 d = project_dir(parts[1])
                 f = (d / Path(*parts[2:])).resolve()
@@ -395,7 +437,29 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parts = [p for p in urlparse(self.path).path.strip("/").split("/") if p]
         try:
+            if parts == ["api", "motion", "upload"]:
+                name = Path(unquote(self.headers.get("X-Filename", "video.mp4"))).name
+                if not name.lower().endswith((".mp4", ".mov")):
+                    raise ValueError("hanya file .mp4 atau .mov")
+                n = int(self.headers.get("Content-Length") or 0)
+                dst = MOTION / "videos" / (Path(name).stem + ".mp4" if name.lower().endswith(".mp4") else name)
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                with dst.open("wb") as f:
+                    left = n
+                    while left > 0:
+                        chunk = self.rfile.read(min(1 << 20, left))
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        left -= len(chunk)
+                return self._json({"ok": True, "name": dst.stem})
             body = self._body()
+            if parts == ["api", "motion", "brief"]:
+                return self._json({"ok": True, "name": save_brief(body)})
+            if parts == ["api", "motion", "open"]:
+                MOTION.mkdir(exist_ok=True)
+                subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(MOTION)])
+                return self._json({"ok": True})
             if parts == ["api", "scan"]:
                 name, argv = scan_argv(body)
                 if not JOB.start("scan", name, argv):
