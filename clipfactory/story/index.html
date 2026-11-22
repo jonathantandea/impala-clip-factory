@@ -16,7 +16,9 @@
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   button:disabled { opacity: .5; }
   .stage { display: grid; place-items: center; min-height: 0; padding: 12px; }
-  canvas { max-height: calc(100vh - 90px); max-width: 100%; aspect-ratio: 9 / 16; background: #000; border-radius: 10px; }
+  canvas { max-height: calc(100vh - 90px); max-width: 100%; background: #000; border-radius: 10px; }
+  .fmt a { color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); }
+  .fmt a.on { color: var(--ink); border-color: var(--accent); }
   #status { color: var(--muted); font-size: 13px; min-width: 200px; }
   input[type=range] { width: 220px; }
 </style>
@@ -32,6 +34,7 @@
   <b id="title">Memuat…</b>
   <button id="play" disabled>▶ Putar</button>
   <input type="range" id="scrub" min="0" max="100" step="0.01" value="0" aria-label="Posisi">
+  <span class="fmt"><a id="f916" href="#">9:16</a> <a id="f169" href="#">16:9</a></span>
   <button id="render" class="primary" disabled>Render video</button>
   <span id="status"></span>
 </header>
@@ -40,20 +43,27 @@
 import { createStory } from './engine.js';
 const q = new URLSearchParams(location.search);
 const project = q.get('project');
+const format = q.get('format') === '16x9' ? '16x9' : '9x16';
+for (const [id, f] of [['f916', '9x16'], ['f169', '16x9']]) {
+  const a = document.getElementById(id); const u = new URL(location.href); u.searchParams.set('format', f); u.searchParams.delete('autorender');
+  a.href = u.toString(); if (f === format) a.classList.add('on');
+}
 const base = `/motion/projects/${encodeURIComponent(project)}/`;
 const $ = (id) => document.getElementById(id);
 const status = (s) => { $('status').textContent = s; };
 let story;
 try {
-  story = await createStory($('out'), base);
+  story = await createStory($('out'), base, { format });
+  $('out').style.aspectRatio = format === '16x9' ? '16 / 9' : '9 / 16';
 } catch (e) {
   status('Gagal memuat: ' + e.message); throw e;
 }
+window.STORY = story;
 $('title').textContent = story.spec.title || project;
 $('scrub').max = story.duration;
 story.seek(0.5);
 ['play', 'render'].forEach((id) => { $(id).disabled = false; });
-status(`${story.duration.toFixed(1)} detik · ${story.scenes} adegan`);
+status(`${format === '16x9' ? '16:9' : '9:16'} · ${story.duration.toFixed(1)} detik · ${story.scenes} adegan`);
 
 // preview with narration
 const audio = new Audio(base + 'vo.wav');
@@ -80,7 +90,7 @@ $('render').onclick = async () => {
   const n = Math.round(story.duration * FPS);
   const t0 = performance.now();
   try {
-    await post('/api/story/render/start', JSON.stringify({ project, fps: FPS, frames: n }), { 'Content-Type': 'application/json' });
+    await post('/api/story/render/start', JSON.stringify({ project, fps: FPS, frames: n, format }), { 'Content-Type': 'application/json' });
     for (let i = 0; i < n; i++) {
       story.seek((i + 0.5) / FPS);
       const blob = await new Promise((res) => $('out').toBlob(res, 'image/jpeg', 0.9));
@@ -92,7 +102,7 @@ $('render').onclick = async () => {
       }
     }
     status('Menggabungkan video, narasi dan musik…');
-    const r = await post('/api/story/render/finish', JSON.stringify({ project }), { 'Content-Type': 'application/json' });
+    const r = await post('/api/story/render/finish', JSON.stringify({ project, format }), { 'Content-Type': 'application/json' });
     status(`Selesai dalam ${((performance.now() - t0) / 60000).toFixed(1)} menit → galeri Motion Factory (${r.file})`);
     window.RENDER_DONE = r;
   } catch (e) {

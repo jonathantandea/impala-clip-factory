@@ -25,11 +25,11 @@ Contoh lengkap: `docs/examples/botol-pak-karjo.json`.
 
 ## Karakter
 `shirt`: hijau, coklat, biru, merah, ungu, kuning (atau 3 warna hex) · `sarong`: coklat, abu, hijau, merah ·
-`hat`: caping | peci | (kosong) · `mustache`, `blush`: true/false.
+`hat`: caping | peci | cap (`capColor`) | toga | (kosong) · `mustache`, `blush`, `whistle` (peluit), `baby` (gendong bayi): true/false · `hair`: warna hex (mis. uban).
 Hewan: `{"type": "octopus"}` (set laut; `mode`: idle, swim, crawl, tired) · `{"type": "wombat"}` (set semak; `mode`: idle, proud; jalan lewat `walk_to`).
 
 ## Set (`scenes[i].set`)
-sawah (default) · laut · kamar · semak (Australia, senja) · ilustrasi (animasi 2D, `illustration`: usus_kubus)
+sawah (default) · laut · kamar · semak (Australia, senja) · kota (Kota Tertib x<0 / Kota Terserah x>0, gerbang di x=0, halte (-14, 4.6), kantor + parkiran x≈-30, angkot (10, 1.6), lampu merah (18, 3.7), sungai + jembatan x=29) · ilustrasi (animasi 2D, `illustration`: usus_kubus)
 
 ## Properti (`world.props`)
 | type | opsi |
@@ -42,6 +42,7 @@ sawah (default) · laut · kamar · semak (Australia, senja) · ilustrasi (anima
 | `cubes` | `count`, `on`: id batu |
 | `trophy` | piala, `scale` |
 | `clothes` | tumpukan baju berantakan |
+| `bus`, `angkot`, `motor` | kendaraan (set kota), `rot`; bisa ditumpangi lewat `ride` + `seat` dan digerakkan lewat `vehicles` |
 Semua bisa diberi `set` (sawah, laut, kamar, semak).
 Semua: `id`, `x`, `z`, `hidden: true` = tersembunyi sampai event `appear`.
 
@@ -53,6 +54,16 @@ Semua: `id`, `x`, `z`, `hidden: true` = tersembunyi sampai event `appear`.
   - `mood`: smile, grin, frown, neutral
 - `events`: `wind {strength}`, `harvest`, `appear {target}`, `disappear {target}`, `raise {target}`,
   `birds_land {target}`, `birds_leave`, `birds_arrive {target: "A"|"B"}`, `birds_flee`, `knock {target, words}`
+
+- `offset`: geser awal adegan (detik); `at_word`: mulai adegan di kata ke-sekian dalam kalimat (untuk montase dalam satu kalimat).
+- `cam`: kamera manual `{ "pos": [x,y,z], "look": [x,y,z], "to": {pos, look}, "follow": id }` (dengan `follow`, pos/look relatif ke kendaraan). `cam_9x16` / `cam_16x9` = kamera khusus per format.
+- `vehicles`: `[{ "id", "from": [x,z], "to": [x,z], "rot", "dur" | "word", "delay", "ease", "bump" }]`.
+- Penumpang: cast `{ "who", "ride": "angkot", "seat": "driver"|"kiri1"|"kiri2"|"kanan1"|"kanan2", "turn" }` · motor: `"depan"|"belakang"`.
+- Masuk frame: cast `"enter": { "from": [x,y,z], "word": "prit", "hidden": true }`; `"y"` = tinggi berdiri.
+- Pose tambahan: watch (lihat jam), hold_out (minta uang), ride, whistle, lying.
+
+Opsi atas: `voices` (`{ "narator": "brian", "budi": "george" }`) + baris naskah `{ "text", "speaker", "pause", "gap" }` untuk banyak suara; `caption_color` (hex).
+Format: setiap project bisa dirender 9:16 dan 16:9 (tombol di halaman render). Contoh multi-suara + kota: `docs/examples/kota-part1-berangkat-kerja.json`.
 
 Teks layar (`title`) mendukung `{arrow}`, `{dot}`, `{trophy}` (digambar, karena font tidak punya → 🔵 🏆).
 

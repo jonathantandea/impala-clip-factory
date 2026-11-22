@@ -281,7 +281,7 @@ export function character(scene, spec) {
   const head = new THREE.Group(); head.position.y = 0.72; torso.add(head);
   const skull = cast(new THREE.Mesh(new THREE.SphereGeometry(0.34, 28, 20), skin)); skull.position.y = 0.3; head.add(skull);
   // hair cap
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.345, 24, 12, 0, M.TAU, 0, 1.1), blk); hair.position.y = 0.3; hair.rotation.x = -0.35; head.add(hair);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.345, 24, 12, 0, M.TAU, 0, 1.1), spec.hair ? mat(spec.hair) : blk); hair.position.y = 0.3; hair.rotation.x = -0.35; head.add(hair);
   const face = new THREE.Group(); face.position.set(0, 0.3, 0); head.add(face);
   const eyes = [-1, 1].map((d) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), blk); e.position.set(d * 0.11, 0.03, 0.315); face.add(e); return e; });
   const brows = [-1, 1].map((d) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.018, 0.02), blk); b.position.set(d * 0.11, 0.11, 0.31); face.add(b); return b; });
@@ -293,12 +293,30 @@ export function character(scene, spec) {
     const c = cast(new THREE.Mesh(new THREE.ConeGeometry(0.66, 0.3, 28), mat(PAL.caping))); c.position.y = 0.66; head.add(c);
   } else if (spec.hat === 'peci') {
     const p = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.3, 0.2, 24), blk)); p.position.y = 0.6; p.rotation.x = -0.12; head.add(p);
+  } else if (spec.hat === 'cap') {
+    const capM = mat(spec.capColor || '#F07A1A');
+    const c = cast(new THREE.Mesh(new THREE.SphereGeometry(0.35, 20, 10, 0, M.TAU, 0, Math.PI / 2), capM)); c.position.y = 0.36; head.add(c);
+    const brim = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 16, 1, false, 0, Math.PI), capM)); brim.position.set(0, 0.42, 0.3); brim.rotation.y = -Math.PI / 2; head.add(brim);
+  } else if (spec.hat === 'toga') {
+    const c = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.3, 0.14, 20), blk)); c.position.y = 0.6; head.add(c);
+    const board = cast(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.04, 0.62), blk)); board.position.y = 0.69; board.rotation.y = Math.PI / 4; head.add(board);
+    const tassel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.25, 6), mat('#F2C14E')); tassel.position.set(0.28, 0.58, 0); head.add(tassel);
+  }
+  if (spec.whistle) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.12, 8), mat('#F2C14E')); w.rotation.x = Math.PI / 2; w.position.set(0.02, 0.2, 0.37); head.add(w);
+  }
+  let baby = null;
+  if (spec.baby) {
+    baby = new THREE.Group();
+    const bb = cast(new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), mat('#F7E6F0'))); bb.scale.set(1.4, 1, 1); baby.add(bb);
+    const bh = cast(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), skin)); bh.position.set(-0.15, 0.06, 0); baby.add(bh);
+    baby.position.set(0, 0.42, 0.24); torso.add(baby);
   }
   scene.add(root);
 
   // pose: a pure function of t and a pose spec
   function pose(t, o = {}) {
-    const { x = 0, y = 0.18, z = 0, rot = 0, walk = 0, armL = null, armR = null, mood = 'smile', look = [0, 0], bob = 1, hold = 0 } = o;
+    const { x = 0, y = 0.18, z = 0, rot = 0, walk = 0, armL = null, armR = null, mood = 'smile', look = [0, 0], bob = 1, hold = 0, sit = 0 } = o;
     root.position.set(x, y, z); root.rotation.y = rot;
     const ph = t * 7.5;
     const sw = walk * Math.sin(ph);
@@ -307,6 +325,8 @@ export function character(scene, spec) {
     hips.position.y = 0.52 + Math.abs(Math.cos(ph)) * 0.04 * walk + idle;
     arms[0].rotation.set(-sw * 0.5, 0, 0.12); arms[1].rotation.set(sw * 0.5, 0, -0.12);
     if (hold) { arms[0].rotation.set(-1.1 * hold, 0, 0.35); arms[1].rotation.set(-1.1 * hold, 0, -0.35); }
+    if (sit) { legs[0].rotation.x = -1.45; legs[1].rotation.x = -1.45; hips.position.y = 0.52 + idle; }
+    if (baby) { arms[0].rotation.set(-1.0, 0, 0.5); arms[1].rotation.set(-1.0, 0, -0.5); }
     if (armL) arms[0].rotation.set(armL[0], armL[1] || 0, armL[2] || 0);
     if (armR) arms[1].rotation.set(armR[0], armR[1] || 0, armR[2] || 0);
     head.rotation.set(look[1], look[0], Math.sin(t * 1.7) * 0.03 * bob);
@@ -620,4 +640,163 @@ export function wombat(scene, { color = '#8C6A50' } = {}) {
     eyes.forEach((e) => { e.scale.y = proud ? 0.35 : blink; });
   }
   return { obj: root, pose, root };
+}
+
+// ======================================================================== town set (Kota Tertib | Kota Terserah) + vehicles
+// x < 0: Kota Tertib (neat), x > 0: Kota Terserah (messy). Main road along x at z = 0.
+export function townSet() {
+  const scene = new THREE.Scene();
+  const SKY = { day: new THREE.Color('#9BD7F5'), dusk: new THREE.Color('#F09A6A'), night: new THREE.Color('#1A2240'), dawn: new THREE.Color('#F4B98C') };
+  scene.background = SKY.day.clone();
+  scene.fog = new THREE.Fog('#CFEAF7', 90, 320);
+  const hemi = new THREE.HemisphereLight('#EAF6FF', '#6E8F4E', 1.5); scene.add(hemi);
+  const sun = new THREE.DirectionalLight('#FFF1D8', 2.0); sun.position.set(-20, 30, 18); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -45, right: 45, top: 30, bottom: -30, near: 1, far: 120 });
+  sun.shadow.bias = -0.0008; scene.add(sun, sun.target);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), mat('#93C65E')); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  const box = (w, h, d, c, x, y, z, o = {}) => { const m = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c, o))); m.position.set(x, y, z); scene.add(m); return m; };
+  // road + sidewalks
+  box(80, 0.06, 6, '#4E5257', -40, 0.03, 0);                      // Tertib asphalt (dark, clean)
+  box(80, 0.06, 6, '#7A776F', 40, 0.03, 0);                       // Terserah asphalt (worn)
+  for (let x = -78; x < -2; x += 4) box(2, 0.065, 0.18, '#F4F4F0', x, 0.035, 0);   // dashes, Tertib only
+  box(80, 0.18, 1.6, '#D9D6CE', -40, 0.09, 3.8); box(80, 0.18, 1.6, '#D9D6CE', -40, 0.09, -3.8);
+  box(80, 0.18, 1.6, '#BDB3A3', 40, 0.09, 3.8); box(80, 0.18, 1.6, '#BDB3A3', 40, 0.09, -3.8);
+  const holeM = mat('#3F3D39');
+  [[8, 1.2], [13, -1.5], [21, 0.8], [35, -1], [41, 1.6], [47, -0.5]].forEach(([x, z], i) => {
+    const h = new THREE.Mesh(new THREE.CircleGeometry(0.35 + (i % 3) * 0.15, 12), holeM); h.rotation.x = -Math.PI / 2; h.position.set(x, 0.065, z); scene.add(h);
+  });
+  // city gate at x = 0
+  const gateM = mat('#E8E2D2');
+  [-4.2, 4.2].forEach((z) => box(0.6, 4.2, 0.6, '#E8E2D2', 0, 2.1, z));
+  box(0.5, 0.8, 9.2, '#E8E2D2', 0, 4.4, 0);
+  const signL = canvasTex(512, 64, (c, w, h) => { c.fillStyle = '#2E6B4E'; c.fillRect(0, 0, w, h); c.fillStyle = '#FFF'; c.font = 'bold 34px sans-serif'; c.textAlign = 'center'; c.fillText('KOTA TERTIB  |  KOTA TERSERAH', w / 2, 44); });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(8.8, 1.1), new THREE.MeshBasicMaterial({ map: signL })); sign.position.set(0.3, 4.4, 0); sign.rotation.y = Math.PI / 2; scene.add(sign);
+  const sign2 = sign.clone(); sign2.position.x = -0.3; sign2.rotation.y = -Math.PI / 2; scene.add(sign2);
+  void gateM;
+  // neat houses + trees (Tertib)
+  for (let i = 0; i < 9; i++) { house(scene, -8 - i * 7.5, -14, 0, 1); house(scene, -8 - i * 7.5, 13, Math.PI, 1); }
+  const treeM = mat('#4C9A3E'), trunkM = mat('#8B6A45');
+  for (let x = -6; x > -78; x -= 6) [-5.2, 5.2].forEach((z) => {
+    if (z > 0 && x > -20 && x < -8) return;   // keep the bus stop clear
+    const t = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 1.6, 8), trunkM)); t.position.set(x, 0.8, z); scene.add(t);
+    const c = cast(new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10), treeM)); c.position.set(x, 2.1, z); scene.add(c);
+  });
+  // office + empty parking lot (Tertib)
+  box(9, 7.5, 6, '#DDE6EC', -30, 3.75, -12);
+  for (let fy = 0; fy < 4; fy++) for (let fx = 0; fx < 5; fx++) box(1.2, 1.1, 0.06, '#5F8FB3', -33.6 + fx * 1.8, 1.4 + fy * 1.7, -8.97, { emissive: '#2F5F83', emissiveIntensity: 0.2 });
+  box(9, 0.05, 5, '#5A5E63', -30, 0.2, -6.9);
+  for (let k = 0; k < 7; k++) box(0.08, 0.055, 2.2, '#F4F4F0', -33.9 + k * 1.3, 0.24, -6.2);
+  // bus stop (Tertib)
+  const stop = new THREE.Group(); stop.position.set(-14, 0.18, 4.6); scene.add(stop);
+  const sm = mat('#2E6B4E');
+  [[-1.6, 0.6], [1.6, 0.6]].forEach(([x, z]) => { const p = cast(new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.4, 0.1), sm)); p.position.set(x, 1.2, z); stop.add(p); });
+  const roof = cast(new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.12, 1.5), sm)); roof.position.set(0, 2.45, 0.2); stop.add(roof);
+  const back = cast(new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.6, 0.05), mat('#BFE3EE', { transparent: true, opacity: 0.6 }))); back.position.set(0, 1.4, 0.65); stop.add(back);
+  const bench = cast(new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 0.4), mat('#8B6A45'))); bench.position.set(0, 0.45, 0.4); stop.add(bench);
+  const busSign = cast(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.05), mat('#F2C14E'))); busSign.position.set(-1.9, 2.5, -0.2); stop.add(busSign);
+  // messy Terserah: houses at odd angles, warung stalls, poles + sagging cables, river + bridge, traffic light
+  for (let i = 0; i < 10; i++) {
+    house(scene, 7 + i * 6.8 + hash(i, 1) * 2, -13.5 - hash(i, 2) * 3, (hash(i, 3) - 0.5) * 0.6, 0.9 + hash(i, 4) * 0.25, i % 2 ? '#C9502A' : '#D45A2A');
+    house(scene, 7 + i * 6.8 + hash(i, 5) * 2, 12.5 + hash(i, 6) * 3, Math.PI + (hash(i, 7) - 0.5) * 0.6, 0.9 + hash(i, 8) * 0.25);
+  }
+  for (let i = 0; i < 8; i++) palm(scene, 9 + i * 7 + hash(i, 9) * 3, (i % 2 ? 1 : -1) * (7 + hash(i, 10) * 3), 5 + hash(i, 11) * 2, i + 20);
+  const stallCols = ['#E2574C', '#F2C14E', '#4C7BE2', '#5DB37E'];
+  [[6.5, 4.0], [15, 4.1], [23.5, -4.0], [37, 4.0], [44, -4.1], [11, -4.0]].forEach(([x, z], i) => {
+    box(1.6, 1.0, 1.0, '#C8A06A', x, 0.68, z);
+    const r = cast(new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 1.4), mat(stallCols[i % 4]))); r.position.set(x, 1.9, z); r.rotation.z = 0.08; scene.add(r);
+    [[-0.9, -0.6], [0.9, -0.6], [-0.9, 0.6], [0.9, 0.6]].forEach(([dx, dz]) => box(0.06, 1.7, 0.06, '#6B4A2E', x + dx, 1.0, z + dz));
+  });
+  const poleX = [5, 12, 19.5, 34, 41, 48];
+  const poleM = mat('#8A8A8A');
+  poleX.forEach((x) => { const p = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 6, 8), poleM)); p.position.set(x, 3, 4.9); scene.add(p); });
+  const cableM = new THREE.LineBasicMaterial({ color: '#1E1B19' });
+  for (let i = 0; i < poleX.length - 1; i++) for (let k = 0; k < 4; k++) {
+    const pts = []; const x0 = poleX[i], x1 = poleX[i + 1];
+    for (let s = 0; s <= 12; s++) { const f = s / 12; pts.push(new THREE.Vector3(x0 + (x1 - x0) * f, 5.7 - k * 0.18 - Math.sin(f * Math.PI) * (0.6 + k * 0.25), 4.9 + (k - 1.5) * 0.12)); }
+    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), cableM));
+  }
+  // river along z at x = 29 + bridge
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(6, 400), mat('#4A9BC4', { transparent: true, opacity: 0.92 })); water.rotation.x = -Math.PI / 2; water.position.set(29, -0.35, 0); scene.add(water);
+  const bed = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 400), mat('#6A5A44')); bed.rotation.x = -Math.PI / 2; bed.position.set(29, -1.6, 0); scene.add(bed);
+  [25.8, 32.2].forEach((x) => box(0.4, 1.8, 400, '#8C7B66', x, -0.7, 0));
+  // carve the ground over the river: draw banks as boxes covering the plane gap
+  box(6, 0.02, 400, '#4A9BC4', 29, 0.005, 0, { transparent: true, opacity: 0.0 });
+  const deck = box(6.6, 0.3, 6.4, '#9C968A', 29, 0.1, 0);
+  [-3.3, 3.3].forEach((z) => { box(6.6, 0.12, 0.12, '#D9D6CE', 29, 1.0, z); for (let x = 26; x <= 32; x += 1.5) box(0.1, 0.9, 0.1, '#D9D6CE', x, 0.55, z); });
+  void deck;
+  // traffic light
+  const tl = new THREE.Group(); tl.position.set(18, 0.18, 3.7); scene.add(tl);
+  const tp = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 3.4, 8), mat('#3A3A3A'))); tp.position.y = 1.7; tl.add(tp);
+  const tbox = cast(new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.3, 0.4), mat('#222222'))); tbox.position.set(0, 3.5, -0.2); tl.add(tbox);
+  const lamps = ['#FF3B30', '#FFCC00', '#34C759'].map((c, i) => { const l = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 10), new THREE.MeshBasicMaterial({ color: c })); l.position.set(0, 3.9 - i * 0.4, -0.42); tl.add(l); return l; });
+  // sun + moon for the time-lapse
+  const sunBall = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 12), new THREE.MeshBasicMaterial({ color: '#FFE08A', fog: false }));
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(2.2, 16, 12), new THREE.MeshBasicMaterial({ color: '#F2F2E8', fog: false }));
+  scene.add(sunBall, moon);
+  const SPOTS = { halte: [-14, 4.1], kantor: [-26, -4.5], angkot: [10, 1.6], lampu: [17.2, 1.4], jembatan: [29, 1.4], sungai: [29, 4.6] };
+  return {
+    scene, SPOTS, trafficLight: tl,
+    // tod: 0 = morning, cycles through dusk, night, dawn and back each 1.0
+    update(t, { tod = 0, cycles = 0 } = {}) {
+      const ph = ((tod % 1) + 1) % 1;
+      const keys = [[0, SKY.day], [0.35, SKY.day], [0.45, SKY.dusk], [0.55, SKY.night], [0.8, SKY.night], [0.9, SKY.dawn], [1, SKY.day]];
+      for (let i = 1; i < keys.length; i++) if (ph <= keys[i][0]) {
+        const f = (ph - keys[i - 1][0]) / (keys[i][0] - keys[i - 1][0]); scene.background.copy(keys[i - 1][1]).lerp(keys[i][1], f); break;
+      }
+      scene.fog.color.copy(scene.background).lerp(new THREE.Color('#FFFFFF'), 0.3);
+      const dark = ph > 0.45 && ph < 0.9 ? Math.min(1, Math.min(ph - 0.45, 0.9 - ph) * 10) : 0;
+      hemi.intensity = 1.5 - dark * 1.0; sun.intensity = 2.0 - dark * 1.8;
+      const ang = ph * M.TAU;   // sun overhead at ph 0.15, sets ~0.45, moon opposite
+      sunBall.position.set(Math.cos(ang + 0.6) * 60, Math.sin(ang + 0.6) * 40 + 5, -70);
+      moon.position.set(Math.cos(ang + 0.6 + Math.PI) * 60, Math.sin(ang + 0.6 + Math.PI) * 40 + 5, -70);
+      lamps[0].material.color.set('#FF3B30'); lamps[2].material.color.set('#1E3A24');
+      void cycles; void t;
+    },
+  };
+}
+const hash = (i, s) => M.hash01(i, s);
+
+// Bus: long body along x, windows, door; front faces -x.
+export function bus(scene, { color = '#2FA4A0' } = {}) {
+  const g = new THREE.Group();
+  const body = cast(new THREE.Mesh(new THREE.BoxGeometry(9, 2.4, 2.5), mat(color))); body.position.y = 1.55; g.add(body);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(9.02, 0.25, 2.52), mat('#FFFFFF')); stripe.position.y = 1.0; g.add(stripe);
+  for (let i = 0; i < 6; i++) [-1.26, 1.26].forEach((z) => { const w = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.8, 0.04), mat('#24435C', { emissive: '#1A3247', emissiveIntensity: 0.3 })); w.position.set(-3.3 + i * 1.35, 2.05, z); g.add(w); });
+  const ws = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.1, 2.2), mat('#24435C')); ws.position.set(-4.51, 2.0, 0); g.add(ws);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.9, 0.05), mat('#1E2A33')); door.position.set(-3.2, 1.3, 1.27); g.add(door);
+  [-3, 3].forEach((x) => [-1.15, 1.15].forEach((z) => { const wh = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.3, 16), mat('#222'))); wh.rotation.x = Math.PI / 2; wh.position.set(x, 0.45, z); g.add(wh); }));
+  scene.add(g); return { obj: g };
+}
+
+// Angkot: minivan with open windows and two long side benches inside (camera can sit inside).
+export function angkot(scene, { color = '#4FA3D9' } = {}) {
+  const g = new THREE.Group();
+  const cm = mat(color), dark = mat('#2A3440');
+  const L = 4.4, Wd = 1.9;
+  const floor = cast(new THREE.Mesh(new THREE.BoxGeometry(L, 0.12, Wd), dark)); floor.position.y = 0.55; g.add(floor);
+  [-Wd / 2, Wd / 2].forEach((z) => { const s = cast(new THREE.Mesh(new THREE.BoxGeometry(L, 0.55, 0.06), cm)); s.position.set(0, 0.88, z); g.add(s); });
+  const roof = cast(new THREE.Mesh(new THREE.BoxGeometry(L + 0.1, 0.1, Wd + 0.1), cm)); roof.position.y = 2.6; g.add(roof);
+  [-L / 2, -0.75, L / 2 - 0.05].forEach((x) => [-Wd / 2, Wd / 2].forEach((z) => { const p = cast(new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.45, 0.08), cm)); p.position.set(x, 1.85, z); g.add(p); }));
+  const back = cast(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.55, Wd), cm)); back.position.set(L / 2, 0.88, 0); g.add(back);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(L + 0.02, 0.12, Wd + 0.02), mat('#F2C14E')); stripe.position.y = 1.08; g.add(stripe);
+  const hood = cast(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, Wd), cm)); hood.position.set(-L / 2 - 0.45, 0.85, 0); g.add(hood);
+  const ws = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.2, Wd - 0.2), mat('#9ED3EA', { transparent: true, opacity: 0.3 })); ws.position.set(-L / 2 + 0.05, 1.85, 0); ws.rotation.z = -0.2; g.add(ws);
+  [-0.6, 0.6].forEach((z) => { const b = cast(new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.1, 0.42), mat('#7A4A2E'))); b.position.set(0.55, 0.95, z * 1.0); g.add(b); });
+  const seat = cast(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.6), mat('#7A4A2E'))); seat.position.set(-L / 2 + 0.6, 0.95, -0.45); g.add(seat);
+  [-1.5, 1.4].forEach((x) => [-Wd / 2, Wd / 2].forEach((z) => { const wh = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.24, 14), mat('#222'))); wh.rotation.x = Math.PI / 2; wh.position.set(x, 0.33, z); g.add(wh); }));
+  scene.add(g);
+  // seats in local coords: driver + left/right benches
+  return { obj: g, seats: { driver: [-L / 2 + 0.6, 0.98, -0.45], kiri1: [0.35, 0.98, -0.6], kiri2: [1.25, 0.98, -0.6], kanan1: [0.35, 0.98, 0.6], kanan2: [1.25, 0.98, 0.6] } };
+}
+
+export function motorbike(scene, { color = '#C8352E' } = {}) {
+  const g = new THREE.Group();
+  [-0.65, 0.65].forEach((x) => { const w = cast(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.08, 8, 18), mat('#222'))); w.position.set(x, 0.32, 0); g.add(w); });
+  const body = cast(new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.28, 0.3), mat(color))); body.position.set(0, 0.62, 0); g.add(body);
+  const seat = cast(new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.1, 0.3), mat('#1E1B19'))); seat.position.set(0.15, 0.8, 0); g.add(seat);
+  const fork = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.8, 6), mat('#888'))); fork.position.set(-0.6, 0.7, 0); fork.rotation.z = 0.35; g.add(fork);
+  const bar = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7, 6), mat('#333'))); bar.rotation.x = Math.PI / 2; bar.position.set(-0.72, 1.08, 0); g.add(bar);
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), mat('#FFF6C8', { emissive: '#FFE7A0', emissiveIntensity: 0.6 })); lamp.position.set(-0.82, 0.95, 0); g.add(lamp);
+  scene.add(g);
+  return { obj: g, seats: { depan: [0.05, 0.86, 0], belakang: [0.5, 0.86, 0] } };
 }

@@ -1,0 +1,1073 @@
+{
+  "title": "Kota Tertib vs Kota Terserah - Part 1: Berangkat Kerja",
+  "voice": "brian",
+  "voices": {
+    "narator": "brian",
+    "budi": "george",
+    "pak_rt": "daniel",
+    "supir": "will",
+    "parkir": "callum"
+  },
+  "language": "id",
+  "music": "ceria",
+  "caption_color": "#FFD23F",
+  "script": [
+    {
+      "text": "Dua kota. Sama-sama jam tujuh pagi. Satu misi: berangkat kerja.",
+      "speaker": "narator",
+      "gap": 1.4
+    },
+    {
+      "text": "Di Kota Tertib, bus datang tepat waktu.",
+      "speaker": "narator",
+      "pause": 0.3,
+      "gap": 0.9
+    },
+    {
+      "text": "Saking tepatnya, warga nyetel jam pakai bus.",
+      "speaker": "narator",
+      "pause": 0.4,
+      "gap": 1.8
+    },
+    {
+      "text": "Sampai jam tujuh lima belas. Masih sempat ngopi.",
+      "speaker": "budi",
+      "pause": 0.4,
+      "gap": 1.0
+    },
+    {
+      "text": "Di Kota Terserah, angkot nunggu penuh.",
+      "speaker": "narator",
+      "pause": 0.4,
+      "gap": 0.6
+    },
+    {
+      "text": "Bentar, Pak. Tunggu penuh.",
+      "speaker": "supir",
+      "gap": 0.6
+    },
+    {
+      "text": "Satu lagi! Satu lagi!",
+      "speaker": "supir",
+      "pause": 0.2,
+      "gap": 0.9
+    },
+    {
+      "text": "Penumpangnya naik masih SMA… turun sudah punya cucu.",
+      "speaker": "narator",
+      "pause": 0.3,
+      "gap": 4.8
+    },
+    {
+      "text": "Udah, naik motor aja.",
+      "speaker": "pak_rt",
+      "gap": 1.1
+    },
+    {
+      "text": "Prit! Dua ribu, Bang.",
+      "speaker": "parkir",
+      "pause": 0.5,
+      "gap": 1.3
+    },
+    {
+      "text": "Prit! Kiri, kiri…",
+      "speaker": "parkir",
+      "pause": 0.5,
+      "gap": 1.5
+    },
+    {
+      "text": "Terus, terus, terus…",
+      "speaker": "parkir",
+      "pause": 0.4,
+      "gap": 1.8
+    },
+    {
+      "text": "Tapi setiap akhir pekan, warga Kota Tertib liburan ke Kota Terserah.",
+      "speaker": "narator",
+      "pause": 0.4,
+      "gap": 0.6
+    },
+    {
+      "text": "Dua ribu, Bang.",
+      "speaker": "parkir",
+      "gap": 0.7
+    },
+    {
+      "text": "AKHIRNYA!",
+      "speaker": "budi",
+      "pause": 0.2,
+      "gap": 1.8
+    },
+    {
+      "text": "Kamu tinggal di kota yang mana?",
+      "speaker": "narator",
+      "pause": 0.5
+    }
+  ],
+  "characters": {
+    "budi": {
+      "shirt": [
+        "#2E5E8C",
+        "#1C3F63",
+        "#E8C35A"
+      ],
+      "sarong": "abu"
+    },
+    "pak_rt": {
+      "shirt": "coklat",
+      "sarong": "coklat",
+      "hat": "peci",
+      "mustache": true,
+      "blush": true
+    },
+    "supir": {
+      "shirt": "merah",
+      "sarong": "abu",
+      "hat": "cap",
+      "capColor": "#3A6EA5"
+    },
+    "parkir": {
+      "shirt": [
+        "#F07A1A",
+        "#F2E15A",
+        "#F07A1A"
+      ],
+      "sarong": "abu",
+      "hat": "cap",
+      "capColor": "#F07A1A",
+      "whistle": true
+    },
+    "warga1": {
+      "shirt": "ungu",
+      "sarong": "abu"
+    },
+    "warga2": {
+      "shirt": "kuning",
+      "sarong": "coklat",
+      "hat": "peci"
+    },
+    "warga3": {
+      "shirt": "hijau",
+      "sarong": "merah"
+    },
+    "sma": {
+      "shirt": [
+        "#F4F4F0",
+        "#E4E4E1",
+        "#9AA6B5"
+      ],
+      "sarong": "abu"
+    },
+    "wisuda": {
+      "shirt": [
+        "#1E1B19",
+        "#2A2724",
+        "#E8C35A"
+      ],
+      "sarong": "abu",
+      "hat": "toga"
+    },
+    "nikah": {
+      "shirt": [
+        "#F4F4F0",
+        "#E8E2D6",
+        "#E8C35A"
+      ],
+      "sarong": "merah",
+      "hat": "peci",
+      "blush": true
+    },
+    "kakek": {
+      "shirt": "hijau",
+      "sarong": "coklat",
+      "hair": "#C9C9C9",
+      "baby": true
+    }
+  },
+  "world": {
+    "props": [
+      {
+        "type": "bus",
+        "id": "bus",
+        "x": -62,
+        "z": 1.5,
+        "rot": 3.14159,
+        "set": "kota"
+      },
+      {
+        "type": "angkot",
+        "id": "angkot",
+        "x": 10,
+        "z": 1.6,
+        "rot": 0,
+        "set": "kota"
+      },
+      {
+        "type": "motor",
+        "id": "motor",
+        "x": 13.8,
+        "z": 1.6,
+        "rot": 3.14159,
+        "set": "kota"
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "set": "kota",
+      "line": 0,
+      "title": "BERANGKAT KERJA",
+      "title_word": "berangkat",
+      "cam": {
+        "pos": [
+          0,
+          52,
+          40
+        ],
+        "look": [
+          0,
+          0,
+          -4
+        ],
+        "to": {
+          "pos": [
+            0,
+            46,
+            33
+          ],
+          "look": [
+            0,
+            0,
+            -4
+          ]
+        }
+      },
+      "cam_9x16": {
+        "pos": [
+          0,
+          100,
+          64
+        ],
+        "look": [
+          0,
+          0,
+          -6
+        ],
+        "to": {
+          "pos": [
+            0,
+            88,
+            56
+          ],
+          "look": [
+            0,
+            0,
+            -6
+          ]
+        }
+      }
+    },
+    {
+      "set": "kota",
+      "line": 1,
+      "title": "TEPAT WAKTU",
+      "title_word": "tepat",
+      "events": [
+        {
+          "type": "clock",
+          "start": "06:59:58",
+          "stop": "07:00:00",
+          "delay": 0.4
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "bus",
+          "from": [
+            -62,
+            1.5
+          ],
+          "to": [
+            -14,
+            1.5
+          ],
+          "rot": 3.14159,
+          "dur": 2.4
+        }
+      ],
+      "cast": [
+        {
+          "who": "budi",
+          "at": [
+            -12.8,
+            4.3
+          ],
+          "face": "camera",
+          "pose": "watch",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -9.0,
+          1.6,
+          3.0
+        ],
+        "look": [
+          -12.8,
+          1.35,
+          4.3
+        ]
+      },
+      "cam_9x16": {
+        "pos": [
+          -8.6,
+          1.6,
+          2.9
+        ],
+        "look": [
+          -12.8,
+          1.35,
+          4.3
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 2,
+      "title": "NYETEL JAM",
+      "title_word": "nyetel",
+      "vehicles": [
+        {
+          "id": "bus",
+          "from": [
+            -62,
+            1.5
+          ],
+          "rot": 3.14159
+        }
+      ],
+      "cast": [
+        {
+          "who": "budi",
+          "at": [
+            -14.6,
+            4.3
+          ],
+          "face": "camera",
+          "pose": "watch",
+          "mood": "neutral"
+        },
+        {
+          "who": "warga1",
+          "at": [
+            -13.3,
+            4.3
+          ],
+          "face": "camera",
+          "pose": "watch",
+          "mood": "neutral"
+        },
+        {
+          "who": "warga2",
+          "at": [
+            -15.9,
+            4.3
+          ],
+          "face": "camera",
+          "pose": "watch",
+          "mood": "neutral"
+        },
+        {
+          "who": "warga3",
+          "at": [
+            -12.1,
+            4.3
+          ],
+          "face": "camera",
+          "pose": "watch",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -9.4,
+          1.6,
+          2.6
+        ],
+        "look": [
+          -14.0,
+          1.35,
+          4.3
+        ]
+      },
+      "cam_9x16": {
+        "pos": [
+          -8.0,
+          1.65,
+          2.3
+        ],
+        "look": [
+          -14.0,
+          1.35,
+          4.3
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 3,
+      "title": "NGOPI",
+      "title_word": "ngopi",
+      "cast": [
+        {
+          "who": "budi",
+          "at": [
+            -26,
+            -4.4
+          ],
+          "face": "camera",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -21,
+          3.2,
+          3.2
+        ],
+        "look": [
+          -28,
+          0.6,
+          -7
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 3,
+      "offset": 1.7,
+      "cast": [
+        {
+          "who": "budi",
+          "at": [
+            -26,
+            -4.4
+          ],
+          "face": "camera",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -25.8,
+          1.78,
+          -2.4
+        ],
+        "look": [
+          -26,
+          1.62,
+          -4.4
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 4,
+      "title": "NUNGGU PENUH",
+      "title_word": "nunggu",
+      "cast": [
+        {
+          "who": "pak_rt",
+          "ride": "angkot",
+          "seat": "kiri2",
+          "mood": "smile"
+        },
+        {
+          "who": "supir",
+          "ride": "angkot",
+          "seat": "driver",
+          "mood": "smile"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.6,
+          1.9,
+          7.4
+        ],
+        "look": [
+          10.2,
+          1.6,
+          1.4
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 5,
+      "cast": [
+        {
+          "who": "supir",
+          "ride": "angkot",
+          "seat": "driver",
+          "mood": "grin",
+          "turn": 0.6
+        }
+      ],
+      "cam": {
+        "pos": [
+          6.0,
+          1.8,
+          2.9
+        ],
+        "look": [
+          8.4,
+          1.7,
+          1.2
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 6,
+      "title": "SATU LAGI!",
+      "title_word": "satu",
+      "events": [
+        {
+          "type": "timelapse",
+          "from": 0.15,
+          "cycles": 1
+        }
+      ],
+      "cast": [
+        {
+          "who": "sma",
+          "ride": "angkot",
+          "seat": "kiri1",
+          "mood": "smile"
+        },
+        {
+          "who": "pak_rt",
+          "ride": "angkot",
+          "seat": "kiri2",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.8,
+          1.95,
+          4.3
+        ],
+        "look": [
+          10.8,
+          1.7,
+          0.8
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 7,
+      "offset": 0.0,
+      "events": [
+        {
+          "type": "timelapse",
+          "from": 0.15,
+          "cycles": 1
+        }
+      ],
+      "cast": [
+        {
+          "who": "sma",
+          "ride": "angkot",
+          "seat": "kiri1",
+          "mood": "neutral"
+        },
+        {
+          "who": "pak_rt",
+          "ride": "angkot",
+          "seat": "kiri2",
+          "mood": "frown"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.8,
+          1.95,
+          4.3
+        ],
+        "look": [
+          10.8,
+          1.7,
+          0.8
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 7,
+      "events": [
+        {
+          "type": "timelapse",
+          "from": 0.15,
+          "cycles": 1
+        }
+      ],
+      "cast": [
+        {
+          "who": "wisuda",
+          "ride": "angkot",
+          "seat": "kiri1",
+          "mood": "grin"
+        },
+        {
+          "who": "pak_rt",
+          "ride": "angkot",
+          "seat": "kiri2",
+          "mood": "frown"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.8,
+          1.95,
+          4.3
+        ],
+        "look": [
+          10.8,
+          1.7,
+          0.8
+        ]
+      },
+      "at_word": "turun"
+    },
+    {
+      "set": "kota",
+      "line": 7,
+      "events": [
+        {
+          "type": "timelapse",
+          "from": 0.15,
+          "cycles": 1
+        }
+      ],
+      "cast": [
+        {
+          "who": "nikah",
+          "ride": "angkot",
+          "seat": "kiri1",
+          "mood": "grin"
+        },
+        {
+          "who": "pak_rt",
+          "ride": "angkot",
+          "seat": "kiri2",
+          "mood": "frown"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.8,
+          1.95,
+          4.3
+        ],
+        "look": [
+          10.8,
+          1.7,
+          0.8
+        ]
+      },
+      "at_word": "punya"
+    },
+    {
+      "set": "kota",
+      "line": 7,
+      "events": [
+        {
+          "type": "timelapse",
+          "from": 0.15,
+          "cycles": 1
+        }
+      ],
+      "cast": [
+        {
+          "who": "kakek",
+          "ride": "angkot",
+          "seat": "kiri1",
+          "mood": "smile"
+        },
+        {
+          "who": "pak_rt",
+          "ride": "angkot",
+          "seat": "kiri2",
+          "mood": "frown"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.8,
+          1.95,
+          4.3
+        ],
+        "look": [
+          10.8,
+          1.7,
+          0.8
+        ]
+      },
+      "at_word": "cucu"
+    },
+    {
+      "set": "kota",
+      "line": 8,
+      "title": "MOTOR AJA",
+      "title_word": "motor",
+      "vehicles": [
+        {
+          "id": "motor",
+          "from": [
+            13.8,
+            1.6
+          ],
+          "to": [
+            17.2,
+            1.4
+          ],
+          "rot": 3.14159,
+          "delay": 0.6
+        }
+      ],
+      "cast": [
+        {
+          "who": "pak_rt",
+          "ride": "motor",
+          "seat": "depan",
+          "mood": "frown"
+        }
+      ],
+      "cam": {
+        "pos": [
+          0.6,
+          1.75,
+          -5.0
+        ],
+        "look": [
+          0,
+          1.35,
+          0
+        ],
+        "follow": "motor"
+      }
+    },
+    {
+      "set": "kota",
+      "line": 9,
+      "title": "DUA RIBU",
+      "title_word": "dua",
+      "vehicles": [
+        {
+          "id": "motor",
+          "from": [
+            17.2,
+            1.4
+          ],
+          "rot": 3.14159
+        }
+      ],
+      "cast": [
+        {
+          "who": "pak_rt",
+          "ride": "motor",
+          "seat": "depan",
+          "mood": "neutral"
+        },
+        {
+          "who": "parkir",
+          "at": [
+            17.4,
+            2.7
+          ],
+          "face": "pak_rt",
+          "pose": "hold_out",
+          "mood": "grin",
+          "enter": {
+            "from": [
+              18.4,
+              0.18,
+              4.1
+            ],
+            "word": "prit",
+            "hidden": true
+          }
+        }
+      ],
+      "cam": {
+        "pos": [
+          14.4,
+          1.8,
+          -2.8
+        ],
+        "look": [
+          17.6,
+          1.45,
+          2.2
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 10,
+      "title": "DARI SUNGAI?!",
+      "vehicles": [
+        {
+          "id": "motor",
+          "from": [
+            27.4,
+            1.4
+          ],
+          "to": [
+            29.6,
+            1.4
+          ],
+          "rot": 3.14159,
+          "ease": "linear"
+        }
+      ],
+      "cast": [
+        {
+          "who": "pak_rt",
+          "ride": "motor",
+          "seat": "depan",
+          "mood": "frown"
+        },
+        {
+          "who": "parkir",
+          "at": [
+            29.6,
+            4.7
+          ],
+          "y": -0.95,
+          "face": "camera",
+          "pose": "whistle",
+          "mood": "grin",
+          "enter": {
+            "from": [
+              29.6,
+              -2.2,
+              4.7
+            ],
+            "word": "prit"
+          }
+        }
+      ],
+      "cam": {
+        "pos": [
+          27.6,
+          1.3,
+          8.6
+        ],
+        "look": [
+          29.2,
+          0.4,
+          3.6
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 11,
+      "title": "TERUS…",
+      "title_word": "terus",
+      "vehicles": [
+        {
+          "id": "motor",
+          "from": [
+            36,
+            1.4
+          ],
+          "to": [
+            50,
+            1.4
+          ],
+          "rot": 3.14159,
+          "ease": "linear",
+          "bump": true
+        }
+      ],
+      "cast": [
+        {
+          "who": "pak_rt",
+          "ride": "motor",
+          "seat": "depan",
+          "mood": "frown"
+        },
+        {
+          "who": "parkir",
+          "ride": "motor",
+          "seat": "belakang",
+          "pose": "point",
+          "mood": "grin"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -1.6,
+          1.6,
+          4.4
+        ],
+        "look": [
+          0.4,
+          1.1,
+          0
+        ],
+        "follow": "motor"
+      }
+    },
+    {
+      "set": "kota",
+      "line": 12,
+      "title": "",
+      "tod": 0.2,
+      "vehicles": [
+        {
+          "id": "bus",
+          "from": [
+            -14,
+            1.5
+          ],
+          "rot": 3.14159
+        }
+      ],
+      "cast": [
+        {
+          "who": "budi",
+          "at": [
+            -14.6,
+            4.3
+          ],
+          "face": "camera",
+          "pose": "shrug",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -11.4,
+          1.6,
+          2.9
+        ],
+        "look": [
+          -14.6,
+          1.35,
+          4.3
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 12,
+      "offset": 2.3,
+      "cast": [
+        {
+          "who": "budi",
+          "ride": "angkot",
+          "seat": "kiri1",
+          "mood": "grin"
+        },
+        {
+          "who": "supir",
+          "ride": "angkot",
+          "seat": "driver"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.5,
+          1.9,
+          7.2
+        ],
+        "look": [
+          10.3,
+          1.6,
+          1.3
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 13,
+      "cast": [
+        {
+          "who": "budi",
+          "ride": "angkot",
+          "seat": "kiri1",
+          "mood": "grin"
+        },
+        {
+          "who": "parkir",
+          "at": [
+            11.6,
+            3.3
+          ],
+          "face": "budi",
+          "pose": "hold_out",
+          "mood": "grin"
+        }
+      ],
+      "cam": {
+        "pos": [
+          9.0,
+          1.95,
+          6.6
+        ],
+        "look": [
+          10.6,
+          1.6,
+          2.0
+        ]
+      }
+    },
+    {
+      "set": "kota",
+      "line": 14,
+      "title": "AKHIRNYA!",
+      "title_word": "akhirnya",
+      "cast": [
+        {
+          "who": "budi",
+          "ride": "angkot",
+          "seat": "kiri1",
+          "mood": "grin",
+          "pose": "cheer"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.2,
+          2.05,
+          4.4
+        ],
+        "look": [
+          10.35,
+          1.95,
+          1.0
+        ]
+      }
+    },
+    {
+      "set": "ilustrasi",
+      "line": 15,
+      "illustration": "papan_skor",
+      "title": "KOTA YANG MANA?",
+      "title_word": "kota",
+      "score": {
+        "left": "TERTIB",
+        "right": "TERSERAH",
+        "a": 1,
+        "b": 1
+      }
+    }
+  ]
+}

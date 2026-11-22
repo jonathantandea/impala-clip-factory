@@ -489,7 +489,7 @@ class Handler(BaseHTTPRequestHandler):
                 story.save_key(body.get("key", ""))
                 return self._json({"ok": True})
             if parts == ["api", "story", "render", "start"]:
-                story.render_start(body["project"], int(body.get("fps", 30)), int(body.get("frames", 0)))
+                story.render_start(body["project"], int(body.get("fps", 30)), int(body.get("frames", 0)), body.get("format", "9x16"))
                 return self._json({"ok": True})
             if parts == ["api", "story", "render", "finish"]:
                 return self._json({"ok": True, "file": story.render_finish(body["project"])})

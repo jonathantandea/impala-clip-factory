@@ -617,7 +617,8 @@ async function loadStory() {
       <div style="flex:1;min-width:180px"><b>${esc(p.title)}</b><div class="muted">${p.lines} kalimat${p.voice ? ` · narasi ${p.duration.toFixed(1)} dtk` : " · belum ada narasi"}</div></div>
       <button data-voice="${esc(p.name)}">${p.voice ? "Buat ulang suara" : "1. Buat suara"}</button>
       <a class="btn-like" href="/story/index.html?project=${encodeURIComponent(p.name)}" target="_blank" rel="noopener" style="text-decoration:none;${p.voice ? "" : "pointer-events:none;opacity:.5"}">2. Preview &amp; Render</a>
-      ${p.video ? `<a href="${esc(p.video)}" download>Unduh video</a>` : ""}
+      ${p.video ? `<a href="${esc(p.video)}" download>Unduh 9:16</a>` : ""}
+      ${p.video_169 ? `<a href="${esc(p.video_169)}" download>Unduh 16:9</a>` : ""}
     </div>`).join("") : '<div class="empty">Belum ada project. Tempel naskah adegan di kiri.</div>';
   document.querySelectorAll("[data-voice]").forEach((b) => b.onclick = async () => {
     b.disabled = true; $("g-log").textContent = "Membuat narasi dengan ElevenLabs…";

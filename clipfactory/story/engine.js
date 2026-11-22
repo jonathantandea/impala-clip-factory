@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import * as M from './motion.js';
 import * as K from './kit.js';
 
-export const W = 1080, H = 1920;
+export let W = 1080, H = 1920;   // set per render: 9x16 (1080x1920) or 16x9 (1920x1080)
+let LAND = false, BASE_FOV = 42, UI = 1;
 const { E, prog, lerp, clamp, hash01 } = M;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -29,11 +30,19 @@ function poseArms(pose, t) {
     case 'look_up': return { look: [0, -0.45] };
     case 'shrug': return { armL: [-0.4, 0, 1.0], armR: [-0.4, 0, -1.0] };
     case 'think': return { armR: [-2.2, 0, -0.6], look: [0.2, -0.15] };
+    case 'watch': return { armL: [-1.35, 0, 0.75], look: [0.15, -0.35] };
+    case 'hold_out': return { armR: [-1.45, 0, -0.25] };
+    case 'ride': return { armL: [-1.2, 0, 0.25], armR: [-1.2, 0, -0.25] };
+    case 'whistle': return { armR: [-2.0, 0, -0.9], armL: [-1.0, 0, 0.6] };
     default: return {};
   }
 }
 
-export async function createStory(canvas, base) {
+export async function createStory(canvas, base, opts = {}) {
+  LAND = opts.format === '16x9';
+  [W, H] = LAND ? [1920, 1080] : [1080, 1920];
+  BASE_FOV = LAND ? 30 : 42;          // landscape: narrower vertical FOV keeps subjects a similar size
+  UI = LAND ? 0.82 : 1;               // text scale
   const spec = await fetch(base + 'scene.json', { cache: 'no-store' }).then((r) => r.json());
   const vo = await fetch(base + 'words.json', { cache: 'no-store' }).then((r) => r.json());
   await document.fonts.load('800 84px Display');
@@ -50,7 +59,15 @@ export async function createStory(canvas, base) {
   const phrases = vo.phrases;                    // one per script line
   const END = vo.duration;
   const scenes = spec.scenes.map((s, i) => ({ ...s, line: s.line ?? i }));
-  const startOf = (i) => (i === 0 ? 0 : Math.max(0, (phrases[scenes[i].line] || phrases[phrases.length - 1]).s - 0.12));
+  const startOf = (i) => {
+    if (i === 0) return 0;
+    const sc0 = scenes[i];
+    if (sc0.at_word) {        // start on a spoken word of its line
+      const w = vo.words.find((x) => x.phrase === sc0.line && x.w.toLowerCase().replace(/[^a-z0-9-]/g, '').startsWith(sc0.at_word.toLowerCase()));
+      if (w) return Math.max(0, w.s - 0.1);
+    }
+    return Math.max(0, (phrases[sc0.line] || phrases[phrases.length - 1]).s - 0.12 + (sc0.offset || 0));
+  };
   const sceneAt = (t) => { let k = 0; for (let i = 0; i < scenes.length; i++) if (t >= startOf(i)) k = i; return k; };
   const spanOf = (i) => [startOf(i), i + 1 < scenes.length ? startOf(i + 1) : END];
   const lineWords = (i) => vo.words.filter((w) => w.phrase === scenes[i].line);
@@ -58,7 +75,7 @@ export async function createStory(canvas, base) {
 
   // ---------------------------------------------------------------- world
   const scene = new THREE.Scene();
-  const cam = new THREE.PerspectiveCamera(42, W / H, 0.1, 300);
+  const cam = new THREE.PerspectiveCamera(BASE_FOV, W / H, 0.1, 300);
   K.skyAndLights(scene);
   const clouds = K.clouds(scene);
   K.ground(scene);
@@ -81,6 +98,7 @@ export async function createStory(canvas, base) {
   if (usedSets.has('laut')) SETS.laut = K.seaSet();
   if (usedSets.has('kamar')) SETS.kamar = K.roomSet();
   if (usedSets.has('semak')) SETS.semak = K.scrubSet();
+  if (usedSets.has('kota')) SETS.kota = K.townSet();
   if (usedSets.has('ilustrasi')) SETS.ilustrasi = { scene: new THREE.Scene(), flat: true };
   const setOf = (i) => scenes[i].set || spec.world?.set || 'sawah';
 
@@ -90,7 +108,10 @@ export async function createStory(canvas, base) {
     const id = p.id || `${p.type}${i}`;
     const scene = (SETS[p.set || 'sawah'] || SETS.sawah).scene;   // eslint-disable-line no-shadow
     let o;
-    if (p.type === 'flat_rock') o = K.flatRock(scene, p.x, p.z);
+    if (p.type === 'bus') { o = K.bus(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
+    else if (p.type === 'angkot') { o = K.angkot(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
+    else if (p.type === 'motor') { o = K.motorbike(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
+    else if (p.type === 'flat_rock') o = K.flatRock(scene, p.x, p.z);
     else if (p.type === 'cubes') {
       const host = p.on && props[p.on];
       o = K.cubes(scene, p.count ?? 5, host ? host.top || 0 : 0);
@@ -112,7 +133,7 @@ export async function createStory(canvas, base) {
     } else if (p.type === 'house') { o = { obj: K.house(scene, p.x, p.z, p.rot || 0, p.scale || 1) }; }
     else if (p.type === 'palm') { o = { obj: K.palm(scene, p.x, p.z, p.height || 5, i) }; }
     if (!o) return;
-    o.spec = p; o.id = id; props[id] = o;
+    o.spec = p; o.id = id; o.home = o.obj.position.clone(); o.homeRot = o.obj.rotation.y; props[id] = o;
   });
 
   // characters
@@ -122,7 +143,8 @@ export async function createStory(canvas, base) {
     const sarong = Array.isArray(c.sarong) ? c.sarong : SARONGS[c.sarong] || SARONGS.coklat;
     const ch = c.type === 'octopus' ? K.octopus(scene, { color: c.color || '#E8704A' })
       : c.type === 'wombat' ? K.wombat(scene, { color: c.color || '#8C6A50' })
-      : K.character(scene, { shirt, sarong, hat: c.hat || null, mustache: !!c.mustache, blush: !!c.blush });
+      : K.character(scene, { shirt, sarong, hat: c.hat || null, mustache: !!c.mustache, blush: !!c.blush,
+        hair: c.hair, whistle: !!c.whistle, baby: !!c.baby, capColor: c.capColor });
     ch.type = c.type || 'person';
     ch.sack = K.sack(scene); ch.sack.visible = false;
     chars[id] = ch;
@@ -205,8 +227,19 @@ export async function createStory(canvas, base) {
   function placeCamera(t, sc) {
     const s = scenes[sc];
     const [a, b] = spanOf(sc);
+    const camSpec = (LAND ? s.cam_16x9 : s.cam_9x16) || s.cam;
+    if (camSpec) {
+      const z0 = s.zoom ? lerp(1, s.zoom, E.outCubic(prog(t, a, a + 0.8))) : 1;
+      if (Math.abs(cam.fov - BASE_FOV / z0) > 1e-4) { cam.fov = BASE_FOV / z0; cam.updateProjectionMatrix(); }
+      const e = E.inOutSine(clamp((t - a) / Math.max(0.5, b - a)));
+      const to = camSpec.to || camSpec;
+      const follow = camSpec.follow && props[camSpec.follow] ? props[camSpec.follow].obj.position : null;
+      const pos = V(...camSpec.pos).lerp(V(...to.pos), e), tgt = V(...camSpec.look).lerp(V(...to.look), e);
+      if (follow) { pos.add(follow); tgt.add(follow); }
+      cam.position.copy(pos); cam.lookAt(tgt); return;
+    }
     const z = s.zoom ? lerp(1, s.zoom, E.outCubic(prog(t, a, a + 0.8))) : 1;
-    if (Math.abs(cam.fov - 42 / z) > 1e-4) { cam.fov = 42 / z; cam.updateProjectionMatrix(); }
+    if (Math.abs(cam.fov - BASE_FOV / z) > 1e-4) { cam.fov = BASE_FOV / z; cam.updateProjectionMatrix(); }
     const p = clamp((t - a) / Math.max(0.5, b - a));
     const f = focusOf(s, t, sc);
     const shot = SHOTS[s.shot] ? s.shot : (sc === 0 ? 'establishing' : 'medium');
@@ -242,6 +275,23 @@ export async function createStory(canvas, base) {
       SETS.laut.update(t, { deep });
     }
     if (active === 'semak') SETS.semak.update(t);
+    if (active === 'kota') {
+      const tl = (scenes[sc].events || []).find((e) => e.type === 'timelapse');
+      const [a, b] = spanOf(sc);
+      const tod = tl ? (tl.from ?? 0.15) + (tl.cycles ?? 1) * clamp((t - a) / Math.max(0.5, b - a)) : (scenes[sc].tod ?? 0.12);
+      SETS.kota.update(t, { tod });
+    }
+    // vehicles: each scene may move props (drive from -> to, arriving at a word)
+    Object.values(props).forEach((o) => { if (o.home) { o.obj.position.copy(o.home); o.obj.rotation.y = o.homeRot; } });
+    (scenes[sc].vehicles || []).forEach((v) => {
+      const o = props[v.id]; if (!o) return;
+      const [a, b] = spanOf(sc);
+      const tEnd = v.word ? wordTime(sc, v.word) : a + (v.dur ?? (b - a));
+      const k = (v.ease === 'linear' ? (x) => x : E.outCubic)(prog(t, a + (v.delay || 0), tEnd));
+      const from = v.from || [o.home.x, o.home.z], to = v.to || from;
+      o.obj.position.set(lerp(from[0], to[0], k), 0.06 + (v.bump ? Math.abs(Math.sin(t * 14)) * 0.03 : 0), lerp(from[1], to[1], k));
+      if (v.rot != null) o.obj.rotation.y = v.rot;
+    });
     clouds.update(t);
     // wind: per-scene strength, eased at scene edges
     let wind = 0.05;
@@ -335,10 +385,28 @@ export async function createStory(canvas, base) {
       if (ch.obj.parent !== SETS[active].scene) SETS[active].scene.add(ch.obj);
       if (ch.sack.parent !== SETS[active].scene) SETS[active].scene.add(ch.sack);
       const c = cast[ci];
-      const p = castPos(c, ci, t, sc);
-      const y = castY(c, p.z, sc);
+      let p = castPos(c, ci, t, sc);
+      let y = castY(c, p.z, sc);
+      let rideRot = null;
+      if (c.ride && props[c.ride]) {             // seated in / on a vehicle
+        const o = props[c.ride];
+        const seat = (o.seats || {})[c.seat || Object.keys(o.seats || { a: 0 })[0]] || [0, 0.9, 0];
+        const wp = new THREE.Vector3(...seat).applyEuler(o.obj.rotation).add(o.obj.position);
+        p = { x: wp.x, z: wp.z, walking: 0 }; y = wp.y - 0.52;
+        const local = c.seat === 'kanan1' || c.seat === 'kanan2' ? Math.PI : c.seat && c.seat.startsWith('kiri') ? 0 : -Math.PI / 2;
+        rideRot = o.obj.rotation.y + local + (c.turn || 0);
+      }
+      if (c.enter) {                              // pops in from somewhere (behind a pole, out of the river)
+        const te = c.enter.word ? wordTime(sc, c.enter.word) - 0.25 : spanOf(sc)[0] + (c.enter.at ?? 0.3);
+        const k = M.spring(t - te, M.SPRING.bouncy);
+        const fr = c.enter.from;
+        p = { ...p, x: lerp(fr[0], p.x, k), z: lerp(fr[2], p.z, k) };
+        y = lerp(fr[1], y, k);
+        if (t < te && c.enter.hidden) { ch.obj.visible = false; return; }
+      }
       let rot = 0;
-      if (p.walking) rot = ch.type === 'octopus' || ch.type === 'wombat' ? p.heading * 0.35 + Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.65 : p.heading;
+      if (rideRot != null) rot = rideRot;
+      else if (p.walking) rot = ch.type === 'octopus' || ch.type === 'wombat' ? p.heading * 0.35 + Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.65 : p.heading;
       else if (typeof c.face === 'number') rot = c.face;
       else if (c.face === 'left') rot = -Math.PI / 2;
       else if (c.face === 'right') rot = Math.PI / 2;
@@ -363,7 +431,7 @@ export async function createStory(canvas, base) {
           xray: hs ? E.outCubic(prog(tReal, a + 0.2, a + 0.7)) : 0, blue: blueOn ? 1 : 0, stopped: tReal >= stopT ? 1 : 0 });
         return;
       }
-      ch.pose(t, { x: p.x, y, z: p.z, rot, walk: p.walking, mood: c.mood || 'smile', hold: carry ? 1 : 0, ...poseArms(c.pose, t) });
+      ch.pose(t, { x: p.x, y, z: p.z, rot, walk: p.walking, mood: c.mood || 'smile', hold: carry ? 1 : 0, sit: c.ride || c.sit ? 1 : 0, ...poseArms(c.pose || (c.ride && props[c.ride]?.spec.type === 'motor' && c.seat !== 'belakang' ? 'ride' : null), t) });
       if (c.pose === 'lying') { ch.root.rotation.set(0, 0, Math.PI / 2); ch.root.position.set(p.x + 0.95, y + 0.78, p.z); }
       if (carry) {
         ch.sack.visible = true;
@@ -374,6 +442,7 @@ export async function createStory(canvas, base) {
     return sc;
   }
 
+  const ILLUS_EXTRA = {};   // illustrations registered by overlay helpers below
   const KEY = new Set((spec.keywords || []).map((k) => k.toLowerCase()));
   function caption(t) {
     if (spec.captions === false) return;
@@ -384,13 +453,13 @@ export async function createStory(canvas, base) {
     const s = 1.18 - 0.18 * k;
     const clean = cur.w.toLowerCase().replace(/[^a-z0-9-]/g, '');
     ctx.save();
-    ctx.translate(W / 2, H * 0.76); ctx.scale(s, s);
+    ctx.translate(W / 2, H * (LAND ? 0.8 : 0.76)); ctx.scale(s * UI, s * UI);
     ctx.font = '800 84px Display'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = 14; ctx.strokeStyle = 'rgba(20,16,12,0.92)';
     ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
     ctx.strokeText(cur.w, 0, 0);
     ctx.shadowColor = 'transparent';
-    ctx.fillStyle = KEY.has(clean) ? '#FFD23F' : '#FFFFFF';
+    ctx.fillStyle = spec.caption_color || (KEY.has(clean) ? '#FFD23F' : '#FFFFFF');
     ctx.fillText(cur.w, 0, 0);
     ctx.restore();
   }
@@ -411,10 +480,10 @@ export async function createStory(canvas, base) {
     const parts = ti.text.split(/(\{arrow\}|\{dot\}|\{trophy\})/).filter(Boolean);
     let size = 104;
     const measure = () => { ctx.font = `800 ${size}px Display`; return parts.reduce((w, p) => w + (p === '{arrow}' ? size * 0.9 : p === '{dot}' || p === '{trophy}' ? size * 0.8 : ctx.measureText(p).width), 0); };
-    while (measure() > 960 && size > 46) size -= 4;
+    while (measure() > (LAND ? 1500 : 960) && size > 46) size -= 4;
     const total = measure();
     ctx.save();
-    ctx.translate(W / 2, H * 0.2); ctx.scale(0.7 + 0.3 * k, 0.7 + 0.3 * k); ctx.globalAlpha = clamp(k * 1.5);
+    ctx.translate(W / 2, H * (LAND ? 0.14 : 0.2)); ctx.scale((0.7 + 0.3 * k) * UI, (0.7 + 0.3 * k) * UI); ctx.globalAlpha = clamp(k * 1.5);
     let x = -total / 2;
     ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
     parts.forEach((p) => {
@@ -470,6 +539,63 @@ export async function createStory(canvas, base) {
       ctx.restore();
     });
   }
+  function drawClock(t, sc) {
+    const ev = (scenes[sc].events || []).find((e) => e.type === 'clock');
+    if (!ev) return;
+    const [a] = spanOf(sc);
+    const toSec = (s2) => s2.split(':').reduce((acc, v) => acc * 60 + Number(v), 0);
+    const s0 = toSec(ev.start), s1 = ev.stop ? toSec(ev.stop) : s0 + 99;
+    const tStop = ev.word ? wordTime(sc, ev.word) : null;
+    let cur;
+    if (tStop != null) cur = Math.round(s1 - Math.max(0, Math.ceil(tStop - t)));
+    else cur = Math.min(s1, s0 + Math.floor(t - a - (ev.delay || 0)));
+    cur = Math.max(s0, Math.min(s1, cur));
+    const txt = [Math.floor(cur / 3600), Math.floor(cur / 60) % 60, cur % 60].map((v) => String(v).padStart(2, '0')).join(':');
+    const k = M.spring(t - a - 0.1, M.SPRING.bouncy);
+    const hit = cur >= s1;
+    ctx.save();
+    ctx.translate(W / 2, H * (LAND ? 0.33 : 0.36)); ctx.scale(k * UI, k * UI);
+    ctx.fillStyle = 'rgba(20,16,12,0.85)'; ctx.beginPath(); ctx.roundRect(-250, -70, 500, 140, 30); ctx.fill();
+    ctx.strokeStyle = hit ? '#5CE08A' : '#FFD23F'; ctx.lineWidth = 6; ctx.stroke();
+    ctx.font = '800 96px Display'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = hit ? '#5CE08A' : '#FFFFFF'; ctx.fillText(txt, 0, 6);
+    ctx.restore();
+  }
+  // 5x7 pixel font for the 8-bit scoreboard
+  const PIX = { A: '01110100011000111111100011000110001', B: '11110100011000111110100011000111110', E: '11111100001000011110100001000011111', H: '10001100011000111111100011000110001', I: '01110001000010000100001000010001110', K: '10001100101010011000101001001010001', M: '10001110111010110101100011000110001', N: '10001110011010110011100011000110001', O: '01110100011000110001100011000101110', P: '11110100011000111110100001000010000', R: '11110100011000111110101001001010001', S: '01111100001000001110000010000111110', T: '11111001000010000100001000010000100', U: '10001100011000110001100011000101110', Y: '10001100010101000100001000010000100', G: '01111100001000010111100011000101111', "0": '01110100011001110101110011000101110', "1": '00100011000010000100001000010001110', "2": '01110100010000100010001000100011111', "3": '11110000010000101110000010000111110', "4": '00010001100101010010111110001000010', "5": '11111100001111000001000011000101110', "-": '00000000000000011111000000000000000', "?": '01110100010000100010001000000000100', " ": '00000000000000000000000000000000000' };
+  function pixText(txt, x, y, px, col) {
+    let cx = x;
+    for (const ch of txt.toUpperCase()) {
+      const g = PIX[ch] || PIX[' '];
+      ctx.fillStyle = col;
+      for (let r = 0; r < 7; r++) for (let cc = 0; cc < 5; cc++) if (g[r * 5 + cc] === '1') ctx.fillRect(cx + cc * px, y + r * px, px - 1, px - 1);
+      cx += 6 * px;
+    }
+    return cx - x;
+  }
+  ILLUS_EXTRA.papan_skor = (p, t, s2) => {
+    ctx.fillStyle = '#0E1430'; ctx.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y += 6) { ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(0, y, W, 2); }
+    const sc2 = s2.score || { left: 'TERTIB', right: 'TERSERAH', a: 1, b: 1 };
+    const px = LAND ? 14 : 12;
+    const tw = (txt) => txt.length * 6 * px;
+    const blink = Math.floor(t * 3) % 2 === 0;
+    const k = E.outBack(prog(p, 0, 0.15), 1.6);
+    ctx.save(); ctx.translate(W / 2, H * 0.42); ctx.scale(k, k);
+    const l = sc2.left, r2 = sc2.right;
+    if (LAND) {
+      const line = `${l} ${sc2.a} - ${sc2.b} ${r2}`;
+      pixText(line, -tw(line) / 2, -3.5 * px, px, '#FFFFFF');
+    } else {
+      pixText(l, -tw(l) / 2, -16 * px, px, '#7FD6FF');
+      const mid = `${sc2.a} - ${sc2.b}`;
+      pixText(mid, -tw(mid) * 1.5 / 2, -4 * px, px * 1.5, '#FFFFFF');
+      pixText(r2, -tw(r2) / 2, 10 * px, px, '#FFB86B');
+    }
+    ctx.restore();
+    if (blink) { const ins = 'PART 1'; pixText(ins, W / 2 - tw(ins) * 0.5 / 2, H * (LAND ? 0.62 : 0.6), px * 0.5, '#FFD23F'); }
+  };
+
   function drawFreeze(t, sc) {
     const fz = (scenes[sc].events || []).find((e) => e.type === 'freeze');
     if (!fz) return;
@@ -536,15 +662,16 @@ export async function createStory(canvas, base) {
       while (i0 > 0 && setOf(i0 - 1) === 'ilustrasi' && scenes[i0 - 1].illustration === scenes[sc].illustration) i0--;
       while (i1 + 1 < scenes.length && setOf(i1 + 1) === 'ilustrasi' && scenes[i1 + 1].illustration === scenes[sc].illustration) i1++;
       const a = spanOf(i0)[0], b = spanOf(i1)[1];
-      (ILLUS[scenes[sc].illustration] || ILLUS.usus_kubus)(clamp((t - a) / Math.max(0.5, b - a)), t);
+      ({ ...ILLUS, ...ILLUS_EXTRA }[scenes[sc].illustration] || ILLUS.usus_kubus)(clamp((t - a) / Math.max(0.5, b - a)), t, scenes[sc]);
     } else {
       R.render(setNow.scene, cam);
       ctx.drawImage(glc, 0, 0);
     }
     drawFreeze(t, sc);
+    drawClock(t, sc);
     drawHeartLabels(t, sc);
     drawTitle(t);
     caption(t);
   }
-  return { spec, duration: END, seek, scenes: scenes.length };
+  return { spec, duration: END, seek, scenes: scenes.length, spans: scenes.map((_, i) => spanOf(i)) };
 }
