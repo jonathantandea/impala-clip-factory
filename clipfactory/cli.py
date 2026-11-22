@@ -75,7 +75,7 @@ def _prepare(out: Path, video, c, url, a):
     src = out / "src" / f"clip_{c['id']:02d}.mp4"
     src.parent.mkdir(exist_ok=True)
     if not src.exists():
-        log(f"download potongan #{c['id']} ({mmss(c['start'])}-{mmss(c['end'])}) saja ...")
+        log(f"download potongan #{c['id']} ({mmss(c['start'])}-{mmss(c['end'])}) saja (1-3 menit di Mac lama) ...")
     with Timer() as t:
         offset = download_section(url, c["start"], c["end"], src, getattr(a, "cookies", None))
     if t.seconds > 1:
@@ -206,7 +206,7 @@ def cmd_scan(a) -> None:
                          max_len=a.max_len, top=a.top, heatmap=(info or {}).get("heatmap"))
             picker = f"Ollama {a.llm}"
         else:
-            chat = fetch_chat(video, info, out, a.cookies) if info is not None and not a.no_chat else []
+            chat = fetch_chat(video, info, out, a.cookies, a.chat_timeout) if info is not None and not a.no_chat else []
             curve_path = out / "audio_curve.json"
             if curve_path.exists():
                 audio = read_json(curve_path)
@@ -296,6 +296,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--picker", choices=["signals", "ollama"], default="signals",
                    help="signals = chat, most replayed, suara, kata reaksi (default); ollama = LLM lokal")
     s.add_argument("--no-chat", action="store_true", help="jangan unduh chat replay")
+    s.add_argument("--chat-timeout", type=float, default=12, help="menit maksimal download chat (default 12)")
     s.add_argument("--no-ai", action="store_true", help="jangan pakai Claude API walau API key ada")
     s.add_argument("--top", type=int, default=8, help="jumlah kandidat")
     s.add_argument("--min-len", type=int, default=20)

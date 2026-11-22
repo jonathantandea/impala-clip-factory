@@ -229,25 +229,65 @@ def find_moments(segments, duration: float, *, chat=None, heatmap=None, audio=No
     return out
 
 
-def fetch_chat(url: str, info: dict, workdir: Path, cookies: str | None) -> list:
-    """Download the live-chat replay with yt-dlp if the video has one."""
-    from .remote import _ytdlp
+def _chat_progress(path: Path, duration: float) -> str:
+    """How far into the stream the partial chat file reaches (reads only the file's tail)."""
+    try:
+        size = path.stat().st_size
+        with path.open("rb") as f:
+            f.seek(max(0, size - 65536))
+            tail = f.read().decode("utf-8", "replace")
+        ms = [int(m) for m in re.findall(r'"videoOffsetTimeMsec"\s*:\s*"?(\d+)', tail)]
+        reach = max(ms) / 1000 if ms else 0
+        pct = f"{min(100, reach / duration * 100):.0f}%" if duration and reach else "?"
+        return f"{size / 1e6:.1f} MB, sampai {mmss(reach)} ({pct})"
+    except OSError:
+        return "..."
+
+
+def fetch_chat(url: str, info: dict, workdir: Path, cookies: str | None, timeout_min: float = 12) -> list:
+    """Download the live-chat replay with yt-dlp, showing progress; after timeout_min minutes,
+    stop and use whatever part has arrived (chat for the first hours is still useful)."""
+    import subprocess as sp
+    import sys
+    import time
     langs = info.get("subs", [])
     lang = "live_chat" if "live_chat" in langs else "rechat" if "rechat" in langs else None
     if not lang:
         log("chat replay tidak tersedia untuk video ini")
         return []
-    cached = sorted(workdir.glob("chat*.json")) + sorted(workdir.glob("chat*.json3"))
+    duration = float(info.get("duration") or 0)
+    done = lambda: [p for p in sorted(workdir.glob("chat*.json")) + sorted(workdir.glob("chat*.json3"))]
+    cached = done()
     if not cached:
-        log("download chat replay (bisa beberapa menit untuk stream panjang) ...")
-        try:
-            _ytdlp(["--skip-download", "--write-subs", "--sub-langs", lang, "-o", str(workdir / "chat"), url], cookies)
-        except RuntimeError as e:
-            log(f"chat replay gagal diunduh: {str(e).splitlines()[0]}")
+        log(f"download chat replay (stream panjang bisa 5-15 menit; berhenti otomatis setelah {timeout_min:.0f} menit) ...")
+        cmd = [sys.executable, "-m", "yt_dlp", "--no-warnings", "--no-playlist", "--skip-download",
+               "--write-subs", "--sub-langs", lang, "-o", str(workdir / "chat"), url]
+        if cookies:
+            cmd[3:3] = ["--cookies-from-browser", cookies]
+        proc = sp.Popen(cmd, stdout=sp.DEVNULL, stderr=sp.PIPE, text=True)
+        t0, last = time.time(), 0.0
+        while proc.poll() is None:
+            time.sleep(2)
+            parts = sorted(workdir.glob("chat*.part"))
+            if parts and time.time() - last >= 10:
+                last = time.time()
+                log(f"  chat: {_chat_progress(parts[0], duration)}")
+            if time.time() - t0 > timeout_min * 60:
+                proc.terminate()
+                try:
+                    proc.wait(10)
+                except sp.TimeoutExpired:
+                    proc.kill()
+                log("  batas waktu chat tercapai: pakai bagian chat yang sudah terunduh")
+                break
+        if proc.returncode not in (0, None) and not sorted(workdir.glob("chat*.part")) and not done():
+            err = (proc.stderr.read() if proc.stderr else "").strip().splitlines()[-1:] or ["?"]
+            log(f"chat replay gagal diunduh: {err[0][:160]}")
             return []
-        cached = sorted(workdir.glob("chat*.json")) + sorted(workdir.glob("chat*.json3"))
+        cached = done() or sorted(workdir.glob("chat*.part"))
     if not cached:
         return []
     msgs = parse_chat(cached[0])
-    log(f"chat replay: {len(msgs)} pesan")
+    reach = max((m[0] for m in msgs), default=0)
+    log(f"chat replay: {len(msgs)} pesan (sampai {mmss(reach)})")
     return msgs
