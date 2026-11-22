@@ -9,10 +9,13 @@ from __future__ import annotations
 import re
 
 SETS = [
+    ("ilustrasi", r"ilustrasi|usus|cetakan|infografis|animasi simpel|diagram (usus|cara)"),
+    ("semak", r"semak|australia|outback|gurun|padang rumput|hutan kering|eukaliptus|wombat|kanguru"),
     ("laut", r"laut|samudra|samudera|gurita|ikan|karang|terumbu|dasar laut|hiu|paus|ubur"),
-    ("kamar", r"kamar|rebahan|rebah|kasur|sofa|tiduran|berbaring|ruang tamu|di rumah|nonton"),
+    ("kamar", r"kamar|rebahan|rebah|kasur|sofa|tiduran|berbaring|ruang tamu|di rumah|nonton|tumpukan baju|baju berantakan|lipat baju|lemari|cucian"),
     ("sawah", r"sawah|desa|kampung|petani|padi|kebun|ladang|pematang|panen"),
 ]
+EMOJI_TROPHY = re.compile(r"[\U0001F3C6\U0001F947\U0001F3C5]")      # 🏆 🥇 🏅 -> drawn trophy
 EMOJI_DOT = re.compile(r"[\U0001F535\U0001F7E6\U0001F499]")          # 🔵 🟦 💙 -> drawn blue dot
 EMOJI_ANY = re.compile(r"[\U0001F000-\U0001FAFF☀-➿️]")
 STOPWORDS = set("yang dan di ke dari itu ini ada aja juga lagi buat sama kalau tapi jadi bikin lebih kayak karena "
@@ -29,6 +32,7 @@ def _clean_title(s: str) -> str:
     s = s.strip().strip('"')
     s = s.replace("→", " {arrow} ").replace("->", " {arrow} ")
     s = EMOJI_DOT.sub(" {dot}", s)
+    s = EMOJI_TROPHY.sub("{trophy} ", s)
     s = EMOJI_ANY.sub("", s)
     return re.sub(r"\s+", " ", s).strip()
 
@@ -104,6 +108,8 @@ def build(text: str, voice: str = "brian", music: str = "") -> dict:
     chars = {}
     if _has(r"gurita", full):
         chars["gurita"] = {"type": "octopus", "color": "#E8704A"}
+    if _has(r"wombat", full):
+        chars["wombat"] = {"type": "wombat", "color": "#8C6A50"}
     names = []
     for m in re.finditer(r"\b(Pak|Bu|Mbak|Mas|Bang)\s+([A-Z][a-z]+)", " ".join(r["vo"] for r in rows)):
         nid = m.group(2).lower()
@@ -116,7 +122,13 @@ def build(text: str, voice: str = "brian", music: str = "") -> dict:
     if _has(r"\b(kamu|gue|gua|aku|saya|narator|creator|kreator)\b", " ".join(r["visual"] for r in rows)) or _has(r"rebahan", full):
         chars.setdefault("kamu", {"shirt": "biru", "sarong": "abu"})
 
-    lines, scenes, cur_set, prev_cast = [], [], None, []
+    HOME = {"octopus": "laut", "wombat": "semak"}
+    fits = lambda c, st: (HOME.get(chars[c].get("type")) == st) if chars[c].get("type") in HOME else st in ("sawah", "kamar", "semak")
+    props, prop_ids = [], set()
+    def add_prop(p):
+        if p["id"] not in prop_ids:
+            prop_ids.add(p["id"]); props.append(p)
+    lines, scenes, cur_set, prev_cast, last_real = [], [], None, [], None
     shots_cycle = ["medium", "wide", "low", "medium", "closeup"]
     row_items = [x for r in rows for x in _split_long(r)]
     for i, r in enumerate(row_items):
@@ -124,29 +136,57 @@ def build(text: str, voice: str = "brian", music: str = "") -> dict:
         both = vis + " " + vo.lower()
         st = None if r.get("carry") else (next((n for n, rx in SETS if _has(rx, vis)), None) or
                                            (None if r.get("cont") else next((n for n, rx in SETS if _has(rx, vo)), None)))
-        cur_set = st or cur_set or ("laut" if "gurita" in chars else "sawah")
+        if not st and cur_set == "ilustrasi" and not r.get("cont"):
+            cur_set = last_real               # an illustration never carries over to the next row
+        cur_set = st or cur_set or ("laut" if "gurita" in chars else "semak" if "wombat" in chars else "sawah")
+        if cur_set != "ilustrasi":
+            last_real = cur_set
         # cast: characters named in the visual, else carry over, else the set's natural lead
         who = [] if r.get("carry") else [c for c in chars if _has(rf"\b{c}\b", vis)]
         if not r.get("carry") and "kamu" in chars and _has(r"\b(kamu|gue|gua|aku|saya)\b", vis) and "kamu" not in who:
             who.append("kamu")
         if not who:
-            who = [c for c in prev_cast if (cur_set == "laut") == (chars[c].get("type") == "octopus")] or (
+            who = [c for c in prev_cast if fits(c, cur_set)] or (
                 ["gurita"] if cur_set == "laut" and "gurita" in chars else
+                ["wombat"] if cur_set == "semak" and "wombat" in chars else
                 ["kamu"] if cur_set == "kamar" and "kamu" in chars else names[:1])
-        if cur_set != "laut":
-            who = [c for c in who if chars[c].get("type") != "octopus"]
-        if not who and cur_set == "sawah":
+        who = [c for c in dict.fromkeys(who) if fits(c, cur_set)]
+        if cur_set == "ilustrasi":
+            who = []
+        if not who and cur_set == "sawah" and not r.get("carry"):
             chars.setdefault("petani", {"shirt": "hijau", "sarong": "coklat", "hat": "caping"})
             who = ["petani"]
         prev_cast = who
 
         sc = {"set": cur_set, "cast": [], "events": []}
+        if cur_set == "ilustrasi":
+            sc["illustration"] = "usus_kubus"
+        if cur_set == "semak" and _has(r"batu|kayu", vis) and _has(r"kubus|kotak|pup|kotoran", vis):
+            first = "batu" not in prop_ids
+            add_prop({"type": "flat_rock", "id": "batu", "x": 0.0, "z": -1.2, "set": "semak", "hidden": True})
+            add_prop({"type": "cubes", "id": "kubus", "on": "batu", "count": 6, "set": "semak", "hidden": True})
+            if first:
+                sc["events"] += [{"type": "appear", "target": "batu"}, {"type": "appear", "target": "kubus"}]
+            sc["focus"] = "batu"; sc["small"] = True; sc["shot"] = "closeup"
+            if not _has(r"wombat", vis):
+                who = []
+        if cur_set == "semak" and _has(r"penghargaan|piala|trofi|trophy|nobel|juara|bangga", vis + " " + (r.get("title") or "").lower()):
+            first = "piala" not in prop_ids
+            add_prop({"type": "trophy", "id": "piala", "x": 0.75, "z": -1.6, "scale": 1.6, "set": "semak", "hidden": True})
+            if first:
+                sc["events"].append({"type": "appear", "target": "piala"})
+            sc["focus"] = "piala"; sc["small"] = True
+        if cur_set == "kamar" and _has(r"baju|pakaian|cucian", vis):
+            add_prop({"type": "clothes", "id": "baju", "x": -0.35, "z": 0.75, "set": "kamar"})
         if r.get("title"):
             sc["title"] = r["title"]
             tw = re.findall(r"[A-Za-z]{3,}", r["title"])
             num = {"1": "satu", "2": "dua", "3": "tiga", "4": "empat", "5": "lima"}.get((re.search(r"\d", r["title"]) or [None])[0] or "", None)
+            digits = re.search(r"\d{2,}", r["title"])
             if num and re.search(rf"\b{num}\b", vo.lower()):
                 sc["title_word"] = num
+            elif digits and digits.group() in vo:
+                sc["title_word"] = digits.group()
             else:
                 hit = next((w for w in tw if re.search(rf"\b{w.lower()}", vo.lower())), None)
                 if hit:
@@ -163,10 +203,14 @@ def build(text: str, voice: str = "brian", music: str = "") -> dict:
         else:
             sc["shot"] = shots_cycle[i % len(shots_cycle)]
         if _has(r"zoom", vis):
-            sc["zoom"] = 1.3
+            sc["zoom"] = 1.2
         if r.get("cont"):
             sc["shot"] = {"closeup": "medium", "medium": "closeup", "wide": "medium"}.get(sc["shot"], "medium")
             sc.pop("zoom", None)
+        if sc.get("focus") == "piala":
+            sc["shot"] = "medium"
+        if sc.get("focus") == "batu":
+            sc["shot"] = "closeup"
 
         # moves, moods, poses
         for k, c in enumerate(who):
@@ -184,8 +228,18 @@ def build(text: str, voice: str = "brian", music: str = "") -> dict:
                     entry.update(mode="swim", at=[-2.4, -2.6], walk_to=[2.4, -2.0])
                 else:
                     entry.update(mode="idle", at=[0, -2.2])
+            elif ch.get("type") == "wombat":
+                src = vis if (vis and not r.get("cont")) else (r["visual"].lower() + " " + vo.lower())
+                if _has(r"bangga|pamer|juara|menang", src + " " + (r.get("title") or "").lower()):
+                    entry.update(mode="proud", at=[-0.2, -1.4])
+                elif _has(r"jalan|berjalan|melangkah|lari", src):
+                    entry.update(at=[-1.6, -1.6], walk_to=[1.2, -1.2])
+                else:
+                    entry.update(mode="idle", at=[0, -1.4])
             elif cur_set == "kamar":
-                entry["at"] = [0, -0.72] if _has(r"rebahan|rebah|tiduran|berbaring|tidur", vis) else [0.4 * k, 0.4]
+                entry["at"] = [0, -0.72] if _has(r"rebahan|rebah|tiduran|berbaring|tidur", vis) else [0.55 + 0.4 * k, 0.45]
+                if _has(r"menatap kamera|lihat kamera|ke kamera", vis):
+                    entry["face"] = "camera"
                 if _has(r"rebahan|rebah|tiduran|berbaring|tidur", vis):
                     entry["pose"] = "lying"
                     sc["focus"] = [0, -0.45, -0.72]
@@ -222,7 +276,7 @@ def build(text: str, voice: str = "brian", music: str = "") -> dict:
         if octo and stopw and any(e["type"] == "hearts" for e in sc["events"]):
             sc["events"].append({"type": "heart_stop", "word": stopw})
         row_stop = _word_in(row_vo, r"berhenti|mogok|stop") if r.get("part") else stopw
-        if _has(r"freeze|beku|diam", vis) and (stopw or not row_stop or r.get("part") == 1 and not row_stop):
+        if _has(r"freeze|beku|berhenti sejenak", vis) and (stopw or not row_stop or r.get("part") == 1 and not row_stop):
             sc["events"].append({"type": "freeze", **({"word": stopw} if stopw else {})})
         if cur_set == "sawah":
             if _has(r"angin|berhembus|bertiup", both): sc["events"].append({"type": "wind", "strength": 0.3})
@@ -231,6 +285,14 @@ def build(text: str, voice: str = "brian", music: str = "") -> dict:
             if _has(r"burung", both) and _has(r"kabur|terbang|pergi|kaget", both): sc["events"].append({"type": "birds_flee"})
         if not sc["events"]:
             sc.pop("events")
+        if scenes and scenes[-1].get("focus") == "batu" and sc.get("focus") != "batu" and "batu" in prop_ids:
+            sc.setdefault("events", []).extend([{"type": "disappear", "target": "batu"}, {"type": "disappear", "target": "kubus"}])
+        if r.get("cont") and scenes:            # a split row keeps walking from where the last shot ended
+            prev = {c["who"]: c for c in scenes[-1].get("cast", [])}
+            for c in sc["cast"]:
+                pc = prev.get(c["who"])
+                if pc and pc.get("walk_to") and c.get("walk_to"):
+                    c["at"] = list(pc["walk_to"]); c["walk_to"] = [pc["walk_to"][0] + 2.2, pc["walk_to"][1] + 0.3]
         lines.append(vo)
         scenes.append(sc)
 
@@ -239,7 +301,7 @@ def build(text: str, voice: str = "brian", music: str = "") -> dict:
     if not music:
         music = "desa" if all(s["set"] == "sawah" for s in scenes) else "ceria"
     return {"title": title or lines[0][:40], "voice": voice, "language": "id", "music": music, "keywords": keywords,
-            "script": lines, "characters": chars, "world": {"props": []}, "scenes": scenes}
+            "script": lines, "characters": chars, "world": {"props": props}, "scenes": scenes}
 
 
 def summary(spec: dict) -> list[str]:

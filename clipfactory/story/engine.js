@@ -80,14 +80,24 @@ export async function createStory(canvas, base) {
   const SETS = { sawah: { scene } };
   if (usedSets.has('laut')) SETS.laut = K.seaSet();
   if (usedSets.has('kamar')) SETS.kamar = K.roomSet();
+  if (usedSets.has('semak')) SETS.semak = K.scrubSet();
+  if (usedSets.has('ilustrasi')) SETS.ilustrasi = { scene: new THREE.Scene(), flat: true };
   const setOf = (i) => scenes[i].set || spec.world?.set || 'sawah';
 
   // props
   const props = {};
   (spec.world?.props || []).forEach((p, i) => {
     const id = p.id || `${p.type}${i}`;
+    const scene = (SETS[p.set || 'sawah'] || SETS.sawah).scene;   // eslint-disable-line no-shadow
     let o;
-    if (p.type === 'bamboo_pole') o = K.bambooPole(scene, p.x, p.z, { height: 2.3, arm: 1.6, bottles: p.bottles ?? 5 });
+    if (p.type === 'flat_rock') o = K.flatRock(scene, p.x, p.z);
+    else if (p.type === 'cubes') {
+      const host = p.on && props[p.on];
+      o = K.cubes(scene, p.count ?? 5, host ? host.top || 0 : 0);
+      o.obj.position.set(host ? host.obj.position.x : p.x, 0, host ? host.obj.position.z : p.z);
+    } else if (p.type === 'trophy') { o = K.trophy(scene); o.obj.position.set(p.x, p.y || 0, p.z); o.obj.scale.setScalar(p.scale || 1); }
+    else if (p.type === 'clothes') { o = K.clothesPile(scene); o.obj.position.set(p.x, 0, p.z); }
+    else if (p.type === 'bamboo_pole') o = K.bambooPole(scene, p.x, p.z, { height: 2.3, arm: 1.6, bottles: p.bottles ?? 5 });
     else if (p.type === 'scarecrow') o = K.scarecrow(scene, p.x, p.z);
     else if (p.type === 'sacks') {
       const g = new THREE.Group(); scene.add(g);
@@ -111,6 +121,7 @@ export async function createStory(canvas, base) {
     const shirt = Array.isArray(c.shirt) ? c.shirt : SHIRTS[c.shirt] || SHIRTS.hijau;
     const sarong = Array.isArray(c.sarong) ? c.sarong : SARONGS[c.sarong] || SARONGS.coklat;
     const ch = c.type === 'octopus' ? K.octopus(scene, { color: c.color || '#E8704A' })
+      : c.type === 'wombat' ? K.wombat(scene, { color: c.color || '#8C6A50' })
       : K.character(scene, { shirt, sarong, hat: c.hat || null, mustache: !!c.mustache, blush: !!c.blush });
     ch.type = c.type || 'person';
     ch.sack = K.sack(scene); ch.sack.visible = false;
@@ -172,6 +183,15 @@ export async function createStory(canvas, base) {
     high: [[1.5, 7, 7], [0, 0, 0]],
     track: [[2.2, 1.65, 3.4], [-0.6, 1.05, 0]],
   };
+  const SHOTS_SMALL = {
+    establishing: [[1.5, 3.5, 8], [0, 0.4, -4]],
+    wide: [[1.6, 1.4, 4.8], [0, 0.45, 0]],
+    medium: [[0.6, 0.8, 2.6], [0, 0.5, 0]],
+    closeup: [[0.35, 0.75, 2.3], [0, 0.5, 0]],
+    low: [[0.6, 0.3, 3.0], [0, 0.65, 0]],
+    high: [[1, 3.5, 3.5], [0, 0.2, 0]],
+    track: [[1.4, 0.8, 2.8], [-0.4, 0.45, 0]],
+  };
   // an octopus is ~1.4 m tall with its eyes at ~0.6 m: frame its face, not a person's head height
   const SHOTS_OCTO = {
     establishing: [[1.5, 5, 10], [0, 0.6, -6]],
@@ -193,7 +213,8 @@ export async function createStory(canvas, base) {
     const side = s.side ?? (sc % 2 ? -1 : 1);
     const scale = (1 + (f.spread || 0) * 0.45) * (s.dist || 1);
     const octoFocus = (s.cast || []).some((c) => chars[c.who]?.type === 'octopus') && (!s.focus || chars[s.focus]?.type === 'octopus');
-    let [off, look] = (octoFocus ? SHOTS_OCTO : SHOTS)[shot];
+    const smallFocus = (s.cast || []).some((c) => chars[c.who]?.type === 'wombat') && (!s.focus || chars[s.focus]?.type === 'wombat' || (Array.isArray(s.focus) === false && props[s.focus] && s.small));
+    let [off, look] = (octoFocus ? SHOTS_OCTO : (smallFocus || s.small) ? SHOTS_SMALL : SHOTS)[shot];
     if (shot === 'establishing') {
       const e = E.inOutCubic(p);
       const [mo, ml] = SHOTS.medium;
@@ -220,6 +241,7 @@ export async function createStory(canvas, base) {
       });
       SETS.laut.update(t, { deep });
     }
+    if (active === 'semak') SETS.semak.update(t);
     clouds.update(t);
     // wind: per-scene strength, eased at scene edges
     let wind = 0.05;
@@ -316,7 +338,7 @@ export async function createStory(canvas, base) {
       const p = castPos(c, ci, t, sc);
       const y = castY(c, p.z, sc);
       let rot = 0;
-      if (p.walking) rot = ch.type === 'octopus' ? p.heading * 0.35 + Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.65 : p.heading;
+      if (p.walking) rot = ch.type === 'octopus' || ch.type === 'wombat' ? p.heading * 0.35 + Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.65 : p.heading;
       else if (typeof c.face === 'number') rot = c.face;
       else if (c.face === 'left') rot = -Math.PI / 2;
       else if (c.face === 'right') rot = Math.PI / 2;
@@ -326,6 +348,10 @@ export async function createStory(canvas, base) {
         rot = Math.atan2(o.x - p.x, o.z - p.z);
       } else rot = Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.85;   // 'camera' (default)
       const carry = c.pose === 'carry';
+      if (ch.type === 'wombat') {
+        ch.pose(t, { x: p.x, y, z: p.z, rot, mode: p.walking ? 'walk' : (c.mode || 'idle'), mood: c.mood || 'smile' });
+        return;
+      }
       if (ch.type === 'octopus') {
         const [a] = spanOf(sc);
         const hs = evs.find((e) => e.type === 'hearts');
@@ -382,9 +408,9 @@ export async function createStory(canvas, base) {
     const ti = titleAt(t);
     if (!ti) return;
     const k = M.spring(t - ti.t0, M.SPRING.bouncy);
-    const parts = ti.text.split(/(\{arrow\}|\{dot\})/).filter(Boolean);
+    const parts = ti.text.split(/(\{arrow\}|\{dot\}|\{trophy\})/).filter(Boolean);
     let size = 104;
-    const measure = () => { ctx.font = `800 ${size}px Display`; return parts.reduce((w, p) => w + (p === '{arrow}' ? size * 0.9 : p === '{dot}' ? size * 0.7 : ctx.measureText(p).width), 0); };
+    const measure = () => { ctx.font = `800 ${size}px Display`; return parts.reduce((w, p) => w + (p === '{arrow}' ? size * 0.9 : p === '{dot}' || p === '{trophy}' ? size * 0.8 : ctx.measureText(p).width), 0); };
     while (measure() > 960 && size > 46) size -= 4;
     const total = measure();
     ctx.save();
@@ -398,6 +424,18 @@ export async function createStory(canvas, base) {
         const arrow = (col, lw) => { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x + w * 0.12, 0); ctx.lineTo(x + w * 0.85, 0); ctx.moveTo(x + w * 0.6, -size * 0.22); ctx.lineTo(x + w * 0.86, 0); ctx.lineTo(x + w * 0.6, size * 0.22); ctx.stroke(); };
         arrow('rgba(20,16,12,0.92)', size * 0.26); arrow('#FFD23F', size * 0.11);
         x += w; return;
+      }
+      if (p === '{trophy}') {
+        const cx = x + size * 0.38, u = size / 100;
+        const cupPath = () => { ctx.beginPath(); ctx.moveTo(cx - 26 * u, -34 * u); ctx.lineTo(cx + 26 * u, -34 * u); ctx.quadraticCurveTo(cx + 24 * u, 4 * u, cx, 8 * u);
+          ctx.quadraticCurveTo(cx - 24 * u, 4 * u, cx - 26 * u, -34 * u); ctx.closePath(); };
+        ctx.lineJoin = 'round';
+        ctx.fillStyle = 'rgba(20,16,12,0.92)'; ctx.strokeStyle = 'rgba(20,16,12,0.92)'; ctx.lineWidth = 14 * u;
+        cupPath(); ctx.stroke(); ctx.fillRect(cx - 6 * u - 6 * u, 6 * u, 24 * u, 22 * u); ctx.fillRect(cx - 20 * u - 6 * u, 26 * u, 52 * u, 16 * u);
+        ['#F2C14E'].forEach((g) => { ctx.fillStyle = g; cupPath(); ctx.fill(); ctx.fillRect(cx - 6 * u, 6 * u, 12 * u, 22 * u); ctx.fillRect(cx - 20 * u, 28 * u, 40 * u, 10 * u); });
+        ctx.strokeStyle = '#F2C14E'; ctx.lineWidth = 6 * u;
+        [-1, 1].forEach((d) => { ctx.beginPath(); ctx.arc(cx + d * 28 * u, -20 * u, 11 * u, d < 0 ? Math.PI * 0.5 : -Math.PI * 0.5, d < 0 ? Math.PI * 1.5 : Math.PI * 0.5, false); ctx.stroke(); });
+        x += size * 0.8; return;
       }
       if (p === '{dot}') {
         const r = size * 0.27;
@@ -444,10 +482,65 @@ export async function createStory(canvas, base) {
     ctx.restore();
   }
 
+  // ---------------------------------------------------------------- 2-D illustrations (set "ilustrasi")
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.max(0, Math.min(r, w / 2, h / 2))); }
+  const ILLUS = {
+    usus_kubus(p, t) {
+      ctx.fillStyle = '#FFF3E0'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(180,120,80,0.08)';
+      for (let i = 0; i < 40; i++) ctx.fillRect((hash01(i, 3) * W) | 0, (hash01(i, 4) * H) | 0, 6, 6);
+      // the intestine: a thick tube snaking down the frame, soft and stiff bands alternating
+      const pts = [[120, 560], [960, 640], [940, 900], [140, 980], [150, 1240], [960, 1300]];
+      const path = new Path2D(); path.moveTo(...pts[0]);
+      for (let i = 1; i < pts.length; i++) { const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; path.bezierCurveTo((x0 + x1) / 2, y0, (x0 + x1) / 2, y1, x1, y1); }
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#B2584F'; ctx.lineWidth = 150; ctx.stroke(path);
+      ctx.strokeStyle = '#F2A08F'; ctx.lineWidth = 128; ctx.stroke(path);
+      ctx.save(); ctx.setLineDash([70, 70]); ctx.strokeStyle = '#D9776A'; ctx.lineWidth = 128; ctx.stroke(path); ctx.restore();
+      // labels
+      const lab = (txt, x, y, col) => { ctx.font = '800 50px Display'; ctx.textAlign = 'center'; ctx.lineWidth = 12; ctx.strokeStyle = '#FFF3E0'; ctx.strokeText(txt, x, y); ctx.fillStyle = col; ctx.fillText(txt, x, y); };
+      const lk = E.outCubic(prog(p, 0.08, 0.2));
+      if (lk > 0) { ctx.globalAlpha = lk; lab('lentur', 330, 500, '#B2584F'); lab('kaku', 760, 520, '#7A3530'); ctx.globalAlpha = 1; }
+      // the dropping travels along the tube and squares up as it goes
+      const q = E.inOutSine(prog(p, 0.12, 0.86));
+      const seg = Math.min(pts.length - 2, Math.floor(q * (pts.length - 1)));
+      const f = q * (pts.length - 1) - seg;
+      const [x0, y0] = pts[seg], [x1, y1] = pts[seg + 1];
+      const bx = ((1 - f) ** 3) * x0 + 3 * ((1 - f) ** 2) * f * ((x0 + x1) / 2) + 3 * (1 - f) * f * f * ((x0 + x1) / 2) + f ** 3 * x1;
+      const by = ((1 - f) ** 3) * y0 + 3 * ((1 - f) ** 2) * f * y0 + 3 * (1 - f) * f * f * y1 + f ** 3 * y1;
+      const sq = q, size = 92, rad = lerp(size / 2, 8, sq);
+      const squeeze = 1 + Math.sin(t * 9) * 0.06 * (1 - sq);
+      ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.sin(q * 12) * 0.25 * (1 - sq));
+      ctx.fillStyle = '#6B472B'; rr(-size / 2 * squeeze, -size / 2 / squeeze, size * squeeze, size / squeeze, rad); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.18)'; rr(-size / 2 + 12, -size / 2 + 10, size * 0.4, size * 0.22, rad / 2); ctx.fill();
+      ctx.restore();
+      // the finished cube pops out at the end (isometric)
+      const ck = E.outBack(prog(p, 0.86, 0.95), 1.8);
+      if (ck > 0) {
+        const cx = 820, cy = 1500, a = 110 * ck;
+        const face = (pts2, col) => { ctx.beginPath(); ctx.moveTo(...pts2[0]); pts2.slice(1).forEach((pp) => ctx.lineTo(...pp)); ctx.closePath(); ctx.fillStyle = col; ctx.fill(); };
+        face([[cx, cy - a], [cx + a * 0.87, cy - a * 0.5], [cx, cy], [cx - a * 0.87, cy - a * 0.5]], '#8A5E3B');
+        face([[cx - a * 0.87, cy - a * 0.5], [cx, cy], [cx, cy + a], [cx - a * 0.87, cy + a * 0.5]], '#6B472B');
+        face([[cx + a * 0.87, cy - a * 0.5], [cx, cy], [cx, cy + a], [cx + a * 0.87, cy + a * 0.5]], '#563821');
+        if (ck > 0.9) lab('kubus!', cx, cy + a + 80, '#563821');
+      }
+    },
+  };
+
   function seek(t) {
     const sc = updateWorld(t);
-    R.render(SETS[setOf(sc)].scene, cam);
-    ctx.drawImage(glc, 0, 0);
+    const setNow = SETS[setOf(sc)];
+    if (setNow.flat) {
+      // one illustration runs across consecutive scenes that share it
+      let i0 = sc, i1 = sc;
+      while (i0 > 0 && setOf(i0 - 1) === 'ilustrasi' && scenes[i0 - 1].illustration === scenes[sc].illustration) i0--;
+      while (i1 + 1 < scenes.length && setOf(i1 + 1) === 'ilustrasi' && scenes[i1 + 1].illustration === scenes[sc].illustration) i1++;
+      const a = spanOf(i0)[0], b = spanOf(i1)[1];
+      (ILLUS[scenes[sc].illustration] || ILLUS.usus_kubus)(clamp((t - a) / Math.max(0.5, b - a)), t);
+    } else {
+      R.render(setNow.scene, cam);
+      ctx.drawImage(glc, 0, 0);
+    }
     drawFreeze(t, sc);
     drawHeartLabels(t, sc);
     drawTitle(t);

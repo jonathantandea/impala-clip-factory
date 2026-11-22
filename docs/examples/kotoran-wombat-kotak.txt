@@ -1,0 +1,9 @@
+Judul: Kotoran Wombat Berbentuk Kotak
+
+Waktu	Ucapan (VO / ke kamera)	Teks di layar	Visual
+0–3 dtk	"Ada hewan yang pupnya… kotak. Beneran kotak."	PUP KOTAK?!	Foto wombat, zoom cepat
+3–9 dtk	"Namanya wombat, hewan gemuk dari Australia. Tiap malam dia bisa ngeluarin 80 sampai 100 kotak kecil."	80–100 KOTAK / MALAM	Wombat jalan pelan di semak
+9–17 dtk	"Bentuknya bukan dari pantatnya yang kotak, ya. Ususnya punya bagian yang lentur dan kaku, jadi kotorannya kebentuk pelan-pelan jadi kubus."	USUS = CETAKAN	Ilustrasi simpel usus jadi cetakan kubus
+17–25 dtk	"Gunanya? Buat nandain wilayah. Wombat naruh pupnya di atas batu atau kayu, dan karena kotak… nggak gelinding."	NGGAK GELINDING	Kubus kecil diam di atas batu
+25–31 dtk	"Ilmuwan sampai menelitinya bertahun-tahun, dan penelitiannya menang Ig Nobel."	🏆 IG NOBEL 2019	Teks penghargaan, wombat "bangga"
+31–40 dtk	"Jadi wombat bisa bikin kotak sempurna tiap malam tanpa belajar… sementara gue disuruh lipat baju aja hasilnya kayak gumpalan."	KALAH SAMA WOMBAT	Cut ke tumpukan baju berantakan, kamu menatap kamera datar

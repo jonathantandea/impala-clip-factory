@@ -26,6 +26,10 @@ Contoh lengkap: `docs/examples/botol-pak-karjo.json`.
 ## Karakter
 `shirt`: hijau, coklat, biru, merah, ungu, kuning (atau 3 warna hex) · `sarong`: coklat, abu, hijau, merah ·
 `hat`: caping | peci | (kosong) · `mustache`, `blush`: true/false.
+Hewan: `{"type": "octopus"}` (set laut; `mode`: idle, swim, crawl, tired) · `{"type": "wombat"}` (set semak; `mode`: idle, proud; jalan lewat `walk_to`).
+
+## Set (`scenes[i].set`)
+sawah (default) · laut · kamar · semak (Australia, senja) · ilustrasi (animasi 2D, `illustration`: usus_kubus)
 
 ## Properti (`world.props`)
 | type | opsi |
@@ -34,6 +38,11 @@ Contoh lengkap: `docs/examples/botol-pak-karjo.json`.
 | `scarecrow` | `fallen: true` = rebah sampai event `raise` |
 | `sacks` | `count` (1-9), tumpukan karung beras |
 | `house`, `palm` | rumah / pohon kelapa tambahan |
+| `flat_rock` | batu datar (untuk kubus) |
+| `cubes` | `count`, `on`: id batu |
+| `trophy` | piala, `scale` |
+| `clothes` | tumpukan baju berantakan |
+Semua bisa diberi `set` (sawah, laut, kamar, semak).
 Semua: `id`, `x`, `z`, `hidden: true` = tersembunyi sampai event `appear`.
 
 ## Adegan (`scenes[i]` untuk `script[i]`)
@@ -44,5 +53,7 @@ Semua: `id`, `x`, `z`, `hidden: true` = tersembunyi sampai event `appear`.
   - `mood`: smile, grin, frown, neutral
 - `events`: `wind {strength}`, `harvest`, `appear {target}`, `disappear {target}`, `raise {target}`,
   `birds_land {target}`, `birds_leave`, `birds_arrive {target: "A"|"B"}`, `birds_flee`, `knock {target, words}`
+
+Teks layar (`title`) mendukung `{arrow}`, `{dot}`, `{trophy}` (digambar, karena font tidak punya → 🔵 🏆).
 
 Adegan berganti tepat saat kalimat narasinya mulai diucapkan. Durasi video mengikuti panjang narasi (+2,4 detik).

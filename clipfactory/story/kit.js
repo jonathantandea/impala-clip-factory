@@ -492,3 +492,132 @@ export function octopus(scene, { color = '#E8704A' } = {}) {
   return { obj: root, pose, root, hearts };
 }
 function E_out(x) { return 1 - (1 - x) ** 3; }
+
+// ======================================================================== outback set, wombat, cubes, trophy, clothes
+// Australian scrub at dusk: red earth, dry grass, eucalyptus, flat rocks.
+export function scrubSet() {
+  const scene = new THREE.Scene();
+  scene.background = canvasTex(4, 256, (c, w, h) => {
+    const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#3B4A8C'); g.addColorStop(0.45, '#C0748A'); g.addColorStop(0.75, '#F2B36B'); g.addColorStop(1, '#F7CF8E');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+  });
+  scene.fog = new THREE.Fog('#E9A877', 18, 70);
+  scene.add(new THREE.HemisphereLight('#FFD9B0', '#7A4A2E', 1.4));
+  const sun = new THREE.DirectionalLight('#FFB873', 2.0); sun.position.set(12, 6, 6); sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024); Object.assign(sun.shadow.camera, { left: -10, right: 10, top: 10, bottom: -10, near: 1, far: 50 }); scene.add(sun);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(220, 220, 50, 50), mat('#B5643A'));
+  const gp = ground.geometry.attributes.position;
+  for (let i = 0; i < gp.count; i++) gp.setZ(i, M.noise1(gp.getX(i) * 0.12, 5) * 0.3 + M.noise1(gp.getY(i) * 0.17, 9) * 0.25);
+  ground.geometry.computeVertexNormals(); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+  const grass = [[-9, -14, -2.5, -3], [2.5, -14, 10, -3.5], [-14, -26, 14, -15]].map(([x0, z0, x1, z1], i) =>
+    riceField(scene, { x0, z0, x1, z1, spacing: 0.7, height: 0.6, seed: 80 + i, jitter: 0.5 }));
+  const leafM = mat('#7F9A6A'), trunkM = mat('#E8DCCB');
+  [[-6, -9, 6], [7, -11, 7], [-13, -18, 8], [13, -20, 7.5], [1, -24, 9], [-20, -30, 8], [20, -32, 9]].forEach(([x, z, h], i) => {
+    const t = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.28, h, 8), trunkM)); t.position.set(x, h / 2, z); t.rotation.z = (M.hash01(i, 7) - 0.5) * 0.2; scene.add(t);
+    for (let k = 0; k < 5; k++) {
+      const b = cast(new THREE.Mesh(new THREE.SphereGeometry(1.1 + M.hash01(i * 5 + k, 8) * 0.8, 10, 8), leafM));
+      b.scale.y = 0.6; b.position.set(x + (M.hash01(k + i, 3) - 0.5) * 2.4, h - 0.3 + M.hash01(k, i) * 1.2, z + (M.hash01(k * 2 + i, 4) - 0.5) * 2); scene.add(b);
+    }
+  });
+  const shrubM = mat('#8FA06A');
+  for (let i = 0; i < 26; i++) {
+    const s = cast(new THREE.Mesh(new THREE.SphereGeometry(0.5 + M.hash01(i, 11) * 0.6, 10, 8), shrubM));
+    const a = M.hash01(i, 12) * M.TAU, d = 3 + M.hash01(i, 13) * 14;
+    s.scale.y = 0.65; s.position.set(Math.cos(a) * d, 0.25, -Math.abs(Math.sin(a) * d) - 1.5); scene.add(s);
+  }
+  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+  for (let i = 0; i < 14; i++) {
+    const r = cast(new THREE.Mesh(rockGeo, mat(i % 2 ? '#8C7B6B' : '#A08C78')));
+    const a = M.hash01(i, 21) * M.TAU, d = 4 + M.hash01(i, 22) * 14, s = 0.3 + M.hash01(i, 23) * 0.8;
+    r.position.set(Math.cos(a) * d, s * 0.3, -Math.abs(Math.sin(a) * d) - 2); r.scale.set(s, s * 0.6, s); scene.add(r);
+  }
+  return { scene, update(t) { grass.forEach((g) => g.update(t, { wind: 0.12, ripe: 0.75 })); } };
+}
+
+// A flat display rock (for the cubes) — returned as a prop with a top height.
+export function flatRock(scene, x, z) {
+  const g = new THREE.Group();
+  const r = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.9, 0.45, 9), mat('#9A8674')));
+  r.position.y = 0.22; r.rotation.y = 0.4; g.add(r);
+  g.position.set(x, 0, z); scene.add(g); return { obj: g, top: 0.45 };
+}
+
+// Cube droppings: little brown rounded cubes stacked on a host top.
+export function cubes(scene, n = 5, top = 0) {
+  const g = new THREE.Group();
+  const geo = new THREE.BoxGeometry(0.11, 0.11, 0.11, 2, 2, 2);
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i); const s = 1 - 0.12 * (Math.abs(v.x) + Math.abs(v.y) + Math.abs(v.z)) / 0.165; p.setXYZ(i, v.x * (0.92 + 0.08 * s), v.y * (0.92 + 0.08 * s), v.z * (0.92 + 0.08 * s)); }
+  geo.computeVertexNormals();
+  const items = [];
+  for (let i = 0; i < n; i++) {
+    const c = cast(new THREE.Mesh(geo, mat(i % 2 ? '#5A3B24' : '#6B472B')));
+    c.position.set((i % 3 - 1) * 0.14 + M.hash01(i, 2) * 0.03, top + 0.055 + Math.floor(i / 3) * 0.11, (Math.floor(i / 3) % 2) * 0.05 + M.hash01(i, 3) * 0.04);
+    c.rotation.y = M.hash01(i, 4) * 0.5; g.add(c); items.push(c);
+  }
+  scene.add(g); return { obj: g, items };
+}
+
+export function trophy(scene) {
+  const g = new THREE.Group();
+  const gold = mat('#E8B93A', { emissive: '#8A5A00', emissiveIntensity: 0.25 });
+  const cup = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.1, 0.3, 20, 1, true), gold)); cup.position.y = 0.42; g.add(cup);
+  const bowl = cast(new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 8, 0, M.TAU, Math.PI / 2, Math.PI / 2), gold)); bowl.position.y = 0.27; g.add(bowl);
+  [-1, 1].forEach((d) => { const h = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 8, 16, Math.PI), gold); h.position.set(d * 0.24, 0.45, 0); h.rotation.z = -d * Math.PI / 2; g.add(h); });
+  const stem = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.16, 10), gold)); stem.position.y = 0.17; g.add(stem);
+  const base = cast(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.09, 0.2), mat('#5A3B24'))); base.position.y = 0.045; g.add(base);
+  scene.add(g); return { obj: g };
+}
+
+// Messy clothes pile: lumpy cloth shapes in mixed colours.
+export function clothesPile(scene) {
+  const g = new THREE.Group();
+  const cols = ['#E2574C', '#4C7BE2', '#F2C14E', '#5DB37E', '#E8E2D6', '#8A63C9', '#2E3A4A'];
+  for (let i = 0; i < 16; i++) {
+    const geo = new THREE.SphereGeometry(0.22 + M.hash01(i, 5) * 0.12, 10, 8);
+    const p = geo.attributes.position;
+    for (let k = 0; k < p.count; k++) p.setY(k, p.getY(k) * (0.35 + M.hash01(k + i, 6) * 0.15));
+    geo.computeVertexNormals();
+    const m = cast(new THREE.Mesh(geo, mat(cols[i % cols.length])));
+    const layer = Math.floor(i / 6);
+    m.position.set((M.hash01(i, 7) - 0.5) * (0.9 - layer * 0.25), 0.07 + layer * 0.13, (M.hash01(i, 8) - 0.5) * (0.7 - layer * 0.2));
+    m.rotation.set((M.hash01(i, 9) - 0.5) * 0.6, M.hash01(i, 10) * 3, (M.hash01(i, 11) - 0.5) * 0.6);
+    m.scale.set(1.3, 1, 0.9); g.add(m);
+  }
+  const sleeve = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.4, 4, 8), mat('#4C7BE2'))); sleeve.rotation.z = 1.2; sleeve.position.set(0.5, 0.1, 0.25); g.add(sleeve);
+  scene.add(g); return { obj: g };
+}
+
+// Wombat: barrel body, short legs, wide snout, little ears. Modes: idle, walk, proud.
+export function wombat(scene, { color = '#8C6A50' } = {}) {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const fur = mat(color), dark = mat(new THREE.Color(color).multiplyScalar(0.62).getStyle()), noseM = mat('#2B211C');
+  const torso = cast(new THREE.Mesh(new THREE.SphereGeometry(0.42, 24, 18), fur)); torso.scale.set(0.95, 0.78, 1.25); torso.position.y = 0.42; body.add(torso);
+  const head = new THREE.Group(); head.position.set(0, 0.5, 0.52); body.add(head);
+  const skull = cast(new THREE.Mesh(new THREE.SphereGeometry(0.27, 20, 16), fur)); skull.scale.set(1.05, 0.9, 1); head.add(skull);
+  const snout = cast(new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), dark)); snout.scale.set(1.2, 0.85, 0.9); snout.position.set(0, -0.06, 0.2); head.add(snout);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 10), noseM); nose.scale.set(1.3, 0.8, 0.8); nose.position.set(0, -0.02, 0.33); head.add(nose);
+  const eyes = [-1, 1].map((d) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), noseM); e.position.set(d * 0.12, 0.07, 0.22); head.add(e);
+    const hl = new THREE.Mesh(new THREE.SphereGeometry(0.011, 6, 4), mat('#FFFFFF', { emissive: '#FFFFFF', emissiveIntensity: 0.6 })); hl.position.set(d * 0.12 + 0.01, 0.085, 0.25); head.add(hl); return e; });
+  [-1, 1].forEach((d) => { const ear = cast(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.12, 8), fur)); ear.position.set(d * 0.17, 0.24, -0.02); ear.rotation.z = -d * 0.35; head.add(ear); });
+  const legs = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sz]) => {
+    const piv = new THREE.Group(); piv.position.set(sx * 0.24, 0.22, sz * 0.3); body.add(piv);
+    const l = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.22, 10), dark)); l.position.y = -0.11; piv.add(l);
+    return piv;
+  });
+  scene.add(root);
+  function pose(t, o = {}) {
+    const { x = 0, y = 0, z = 0, rot = 0, mode = 'idle', mood = 'smile' } = o;
+    root.position.set(x, y, z); root.rotation.set(0, rot, 0);
+    const walk = mode === 'walk', proud = mode === 'proud';
+    const ph = t * 6;
+    legs.forEach((l, i) => { l.rotation.x = walk ? Math.sin(ph + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.55 : 0; });
+    body.position.y = walk ? Math.abs(Math.sin(ph)) * 0.035 : proud ? 0.06 + Math.abs(Math.sin(t * 3)) * 0.03 : Math.sin(t * 2) * 0.01;
+    body.rotation.z = walk ? Math.sin(ph) * 0.05 : 0;
+    head.rotation.set(proud ? -0.35 : Math.sin(t * 1.3) * 0.05, proud ? Math.sin(t * 1.6) * 0.15 : Math.sin(t * 0.9) * 0.12, 0);
+    torso.scale.set(0.95, 0.78 + (proud ? 0.05 : 0), 1.25);
+    const blink = Math.sin(t * 1.2 + x) > 0.99 ? 0.15 : (mood === 'neutral' ? 0.5 : 1);
+    eyes.forEach((e) => { e.scale.y = proud ? 0.35 : blink; });
+  }
+  return { obj: root, pose, root };
+}
