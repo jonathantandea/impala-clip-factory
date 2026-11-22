@@ -314,10 +314,181 @@ export function character(scene, spec) {
     const happy = mood === 'smile' ? 1 : mood === 'frown' ? -1 : 0;
     mouth.rotation.z = happy >= 0 ? Math.PI : 0;
     mouth.position.y = happy >= 0 ? -0.08 : -0.14;
-    mouth.scale.set(1, mood === 'grin' ? 1.4 : 1, 1);
+    mouth.scale.set(1, mood === 'grin' ? 1.4 : mood === 'neutral' ? 0.12 : 1, 1);
     brows[0].rotation.z = happy < 0 ? -0.35 : 0.08; brows[1].rotation.z = happy < 0 ? 0.35 : -0.08;
     const blink = (Math.sin(t * 1.3 + x) > 0.985) ? 0.15 : 1;
     eyes.forEach((e) => { e.scale.y = blink; });
   }
   return { obj: root, pose, arm: (i) => arms[i], root };
 }
+
+// ======================================================================== sea + room sets, octopus
+// Underwater set: sand floor, rocks, coral, swaying kelp, rising bubbles, light shafts.
+export function seaSet() {
+  const scene = new THREE.Scene();
+  const shallow = new THREE.Color('#2C8CC4'), deep = new THREE.Color('#0A2340');
+  scene.background = shallow.clone();
+  scene.fog = new THREE.Fog(shallow.clone(), 7, 42);
+  const hemi = new THREE.HemisphereLight('#CDEFFF', '#2E6670', 1.7); scene.add(hemi);
+  const sun = new THREE.DirectionalLight('#E6F8FF', 1.8);
+  sun.position.set(-4, 16, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+  Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 });
+  scene.add(sun);
+  const sand = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 60, 60), mat('#D9C291'));
+  const sp = sand.geometry.attributes.position;
+  for (let i = 0; i < sp.count; i++) sp.setZ(i, M.noise1(sp.getX(i) * 0.15, 3) * 0.25 + M.noise1(sp.getY(i) * 0.2, 7) * 0.2);
+  sand.geometry.computeVertexNormals(); sand.rotation.x = -Math.PI / 2; sand.receiveShadow = true; scene.add(sand);
+  const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+  for (let i = 0; i < 22; i++) {
+    const r = cast(new THREE.Mesh(rockGeo, mat(i % 3 ? '#7C8A8C' : '#5F6E73')));
+    const a = M.hash01(i, 31) * M.TAU, d = 3 + M.hash01(i, 32) * 16, s = 0.3 + M.hash01(i, 33) * 1.1;
+    r.position.set(Math.cos(a) * d, s * 0.35, -Math.abs(Math.sin(a) * d) - 1); r.scale.set(s, s * 0.7, s); r.rotation.set(i, i * 2, 0);
+    scene.add(r);
+  }
+  const coralCols = ['#F2735A', '#F5A3C7', '#F6C344', '#B47AE0'];
+  for (let i = 0; i < 16; i++) {
+    const g = new THREE.Group();
+    const col = mat(coralCols[i % 4]);
+    for (let j = 0; j < 4; j++) {
+      const br = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 0.5 + M.hash01(i * 9 + j, 4) * 0.5, 6), col));
+      br.position.set((j - 1.5) * 0.09, 0.3, 0); br.rotation.z = (j - 1.5) * 0.35; g.add(br);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), col); tip.position.set((j - 1.5) * 0.2, 0.62, 0); g.add(tip);
+    }
+    const a = M.hash01(i, 41) * M.TAU, d = 2.5 + M.hash01(i, 42) * 10;
+    g.position.set(Math.cos(a) * d, 0, -Math.abs(Math.sin(a) * d) - 1.5); scene.add(g);
+  }
+  const kelp = [[-6, -9, -3, -5], [3.5, -12, 7, -7], [-12, -16, -7, -11], [8, -18, 13, -14]]
+    .map(([x0, z0, x1, z1], i) => {
+      const f = riceField(scene, { x0, z0, x1, z1, spacing: 0.75, height: 2.2, seed: 50 + i, jitter: 0.4 });
+      return f;
+    });
+  // bubbles
+  const bubGeo = new THREE.SphereGeometry(0.05, 8, 6);
+  const bubbles = new THREE.InstancedMesh(bubGeo, mat('#E8F8FF', { transparent: true, opacity: 0.55, emissive: '#BFE8FF', emissiveIntensity: 0.4 }), 60);
+  scene.add(bubbles);
+  // light shafts
+  const shaftMat = new THREE.MeshBasicMaterial({ color: '#BFE8FF', transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+  const shafts = [-5, -1.5, 2.5, 6].map((x, i) => {
+    const s = new THREE.Mesh(new THREE.ConeGeometry(1.4, 16, 12, 1, true), shaftMat); s.position.set(x, 8, -6 - i * 2); s.rotation.z = 0.15; scene.add(s); return s;
+  });
+  const m4 = new THREE.Matrix4();
+  return {
+    scene, sun,
+    update(t, { deep = 0 } = {}) {
+      scene.background.lerpColors(shallow, deep_c(deep), 1); scene.fog.color.copy(scene.background);
+      hemi.intensity = 1.7 - deep * 0.9; sun.intensity = 1.8 - deep * 1.2; shaftMat.opacity = 0.07 * (1 - deep);
+      kelp.forEach((k, i) => k.update(t * 0.6 + i, { wind: 0.35, ripe: 0 }));
+      for (let i = 0; i < 60; i++) {
+        const sx = (M.hash01(i, 61) - 0.5) * 12, sz = -1 - M.hash01(i, 62) * 10, sp2 = 0.4 + M.hash01(i, 63) * 0.6;
+        const y = ((t * sp2 + M.hash01(i, 64) * 8) % 8);
+        const sc = 0.5 + M.hash01(i, 65);
+        m4.makeScale(sc, sc, sc).setPosition(sx + Math.sin(t * 2 + i) * 0.1, y, sz); bubbles.setMatrixAt(i, m4);
+      }
+      bubbles.instanceMatrix.needsUpdate = true;
+      shafts.forEach((s, i) => { s.rotation.z = 0.15 + Math.sin(t * 0.3 + i) * 0.05; });
+    },
+  };
+  function deep_c(d) { return shallow.clone().lerp(deep, M.clamp(d)); }
+}
+
+// A small living room: wall, window, sofa, lamp, plant.
+export function roomSet() {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#F3D9C0');
+  scene.add(new THREE.HemisphereLight('#FFF3E2', '#8A6A50', 1.5));
+  const win = new THREE.DirectionalLight('#FFF6E6', 1.6); win.position.set(-3, 5, 4); win.castShadow = true;
+  win.shadow.mapSize.set(1024, 1024); Object.assign(win.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5 }); scene.add(win);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), mat('#C79A6B')); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(14, 6, 0.2), mat('#F1D3B6')); wall.position.set(0, 3, -1.6); wall.receiveShadow = true; scene.add(wall);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 0.05), mat('#FFFFFF')); frame.position.set(-2.2, 2.3, -1.48); scene.add(frame);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(1.36, 1.06, 0.06), mat('#A9DDF5', { emissive: '#CFEFFF', emissiveIntensity: 0.5 })); glass.position.set(-2.2, 2.3, -1.46); scene.add(glass);
+  const sofaM = mat('#5B7FB6'), cushM = mat('#6F93C8');
+  const base = cast(new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.42, 0.95), sofaM)); base.position.set(0, 0.21, -0.75); scene.add(base);
+  const back = cast(new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.75, 0.25), sofaM)); back.position.set(0, 0.6, -1.2); scene.add(back);
+  [-1.4, 1.4].forEach((x) => { const a = cast(new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.6, 0.95), sofaM)); a.position.set(x, 0.42, -0.75); scene.add(a); });
+  const seat = cast(new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.12, 0.85), cushM)); seat.position.set(0, 0.47, -0.72); scene.add(seat);
+  const pillow = cast(new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 10), mat('#F2C14E'))); pillow.scale.set(1, 0.55, 0.8); pillow.position.set(-1.0, 0.65, -0.75); scene.add(pillow);
+  const pot = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.16, 0.4, 12), mat('#C0603C'))); pot.position.set(2.1, 0.2, -1.1); scene.add(pot);
+  const leaves = cast(new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 10), mat('#4E9E36'))); leaves.position.set(2.1, 0.75, -1.1); scene.add(leaves);
+  const lamp = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.35, 16, 1, true), mat('#F7E7C6', { emissive: '#FFE7B0', emissiveIntensity: 0.6, side: THREE.DoubleSide }));
+  lamp.position.set(-2.1, 1.55, -1.0); scene.add(lamp);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.4, 6), mat('#3A3A3A')); pole.position.set(-2.1, 0.7, -1.0); scene.add(pole);
+  return { scene, update() {} };
+}
+
+// Octopus: mantle, big eyes, 8 jointed tentacles; hearts inside for the diagram.
+export function octopus(scene, { color = '#E8704A' } = {}) {
+  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
+  const skin = new THREE.MeshLambertMaterial({ color, transparent: true, opacity: 1 });
+  const tipM = mat(new THREE.Color(color).lerp(new THREE.Color('#FFE2D0'), 0.35).getStyle());
+  const mantle = cast(new THREE.Mesh(new THREE.SphereGeometry(0.42, 28, 20), skin)); mantle.scale.set(1, 1.25, 1); mantle.position.y = 0.95; body.add(mantle);
+  const eyes = [-1, 1].map((d) => {
+    const g = new THREE.Group(); g.position.set(d * 0.17, 0.62, 0.33); body.add(g);
+    const w = new THREE.Mesh(new THREE.SphereGeometry(0.11, 16, 12), mat('#FFFFFF')); g.add(w);
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.058, 12, 10), mat('#1E1B19')); p.position.set(0, -0.01, 0.07); g.add(p);
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), mat('#FFFFFF', { emissive: '#FFFFFF', emissiveIntensity: 0.6 })); h.position.set(0.025, 0.025, 0.115); g.add(h);
+    const lid = new THREE.Mesh(new THREE.SphereGeometry(0.115, 16, 12, 0, M.TAU, 0, Math.PI / 2), skin); lid.rotation.x = -0.2; g.add(lid);
+    return { g, p, lid };
+  });
+  const hearts = [[-0.2, 0.78, 0.05], [0.2, 0.78, 0.05], [0, 1.02, 0.1]].map((p) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), new THREE.MeshBasicMaterial({ color: '#FF4A5A' }));
+    m.position.set(...p); m.visible = false; body.add(m); return m;
+  });
+  const tentacles = [];
+  for (let i = 0; i < 8; i++) {
+    const base = new THREE.Group(); base.position.set(Math.sin((i / 8) * M.TAU) * 0.26, 0.55, Math.cos((i / 8) * M.TAU) * 0.26);
+    base.rotation.y = (i / 8) * M.TAU; body.add(base);
+    const segs = []; let parent = base;
+    for (let s = 0; s < 7; s++) {
+      const j = new THREE.Group(); parent.add(j);
+      const r0 = 0.075 * (1 - s / 8), r1 = 0.075 * (1 - (s + 1) / 8), len = 0.15;
+      const g = new THREE.CylinderGeometry(r1, r0, len, 8); g.translate(0, -len / 2, 0);
+      const seg = cast(new THREE.Mesh(g, s >= 5 ? tipM : skin)); j.add(seg);
+      const nx = new THREE.Group(); nx.position.y = -len; j.add(nx);
+      segs.push(j); parent = nx;
+    }
+    tentacles.push(segs);
+  }
+  scene.add(root);
+  function pose(t, o = {}) {
+    const { x = 0, y = 0, z = 0, rot = 0, mode = 'idle', xray = 0, blue = 0, stopped = 0, mood = 'smile', look = [0, 0] } = o;
+    root.position.set(x, y, z); root.rotation.set(0, rot, 0);
+    const swim = mode === 'swim', crawl = mode === 'crawl', tired = mode === 'tired';
+    const jet = swim ? (t * 1.2) % 1 : 0;
+    const contract = swim ? (jet < 0.3 ? E_out(jet / 0.3) : 1 - (jet - 0.3) / 0.7) : 0;
+    body.position.y = (swim ? 0 : Math.sin(t * 1.8) * 0.03) + (tired ? -0.12 : 0);
+    body.rotation.x = swim ? -0.5 : crawl ? 0.15 : tired ? 0.25 : 0;
+    mantle.scale.set(1 - contract * 0.1, 1.25 + contract * 0.12 - (tired ? 0.15 : 0), 1 - contract * 0.1);
+    tentacles.forEach((segs, i) => {
+      segs.forEach((j, s) => {
+        const ph = t * (swim ? 5 : crawl ? 3 : 1.8) + i * 0.8 + s * 0.6;
+        let ax;
+        if (swim) ax = (s === 0 ? -0.1 + contract * 0.9 : 0.08 * Math.sin(ph) - contract * 0.12);
+        else if (crawl) ax = s === 0 ? 1.25 + 0.25 * Math.sin(t * 3 + i * 1.1) : -0.18 + 0.12 * Math.sin(ph);
+        else if (tired) ax = s === 0 ? 1.35 : -0.05 + 0.04 * Math.sin(ph);
+        else ax = s === 0 ? 0.55 : -0.08 + 0.18 * Math.sin(ph);
+        j.rotation.set(ax, 0, 0.12 * Math.sin(ph * 0.7));
+      });
+    });
+    skin.opacity = 1 - xray * 0.55; skin.depthWrite = xray < 0.5;
+    const red = new THREE.Color('#FF4A5A'), bl = new THREE.Color('#4AA8FF'), gr = new THREE.Color('#8A8A8A');
+    hearts.forEach((h, i) => {
+      h.visible = xray > 0.05;
+      const isBody = i === 2;
+      const off = isBody ? stopped : 0;
+      const beat = Math.pow(Math.max(0, Math.sin(t * M.TAU * 1.3 + i * 0.4)), 6) * (1 - off);
+      h.scale.setScalar((0.8 + xray * 0.2) * (1 + beat * 0.35));
+      h.material.color.copy(red).lerp(bl, blue).lerp(gr, off);
+    });
+    const happy = mood === 'smile' || mood === 'grin';
+    eyes.forEach((e, k) => {
+      e.lid.visible = tired || mood === 'neutral' || mood === 'frown';
+      e.lid.rotation.x = tired ? 0.35 : mood === 'frown' ? -0.1 : 0.15;
+      e.p.position.set(look[0] * 0.03, -0.01 - (tired ? 0.02 : 0) + look[1] * 0.03, 0.07);
+      const blink = Math.sin(t * 1.1 + k * 0.01) > 0.992 ? 0.1 : 1; e.g.scale.y = blink;
+    });
+    void happy;
+  }
+  return { obj: root, pose, root, hearts };
+}
+function E_out(x) { return 1 - (1 - x) ** 3; }

@@ -212,9 +212,13 @@
 <main id="motion-view" class="hidden">
   <aside>
     <section class="card">
-      <h2>AI Generation: naskah adegan</h2>
-      <p class="muted" style="margin:0 0 6px">Kirim brief ke Claude di chat; tempel balasan JSON-nya di sini.</p>
-      <textarea id="g-spec" style="min-height:140px" placeholder='{"title": "...", "script": [...], "scenes": [...]}'></textarea>
+      <h2>AI Generation: tempel script</h2>
+      <p class="muted" style="margin:0 0 6px">Tabel (Waktu | Ucapan | Teks di layar | Visual) atau satu kalimat narasi per baris. Kolom Visual dibaca otomatis: gurita/laut, sawah/desa, kamar/rebahan, close-up, zoom, berenang, merayap, freeze, dll. (JSON naskah adegan juga bisa.)</p>
+      <textarea id="g-spec" style="min-height:160px;font-family:inherit;font-size:14px" placeholder="Judul: ...&#10;Waktu&#9;Ucapan&#9;Teks di layar&#9;Visual&#10;0–3 dtk&#9;&quot;...&quot;&#9;...&#9;Close-up ..."></textarea>
+      <div class="row">
+        <div><label for="g-voice">Suara</label><select id="g-voice"><option value="brian">Brian (laki-laki)</option><option value="sarah">Sarah (perempuan)</option><option value="liam">Liam (laki-laki muda)</option><option value="jessica">Jessica (perempuan)</option></select></div>
+        <div><label for="g-music">Musik</label><select id="g-music"><option value="">Otomatis</option><option value="ceria">Ceria</option><option value="lofi">Lofi</option><option value="desa">Desa</option><option value="none">Tanpa musik</option></select></div>
+      </div>
       <button class="primary full" id="btn-gcreate">Buat project</button>
       <p class="muted" id="g-msg" style="margin:8px 0 0"></p>
     </section>
@@ -624,10 +628,20 @@ async function loadStory() {
 }
 $("btn-gcreate").onclick = async () => {
   const raw = $("g-spec").value.trim();
-  let spec;
-  try { spec = JSON.parse(raw.replace(/^```(json)?|```$/g, "").trim()); } catch (e) { $("g-msg").textContent = "JSON tidak valid: " + e.message; return; }
-  try { const r = await api("/api/story/create", { spec }); $("g-msg").textContent = "Project dibuat. Klik 1. Buat suara di kanan."; $("g-spec").value = ""; loadStory(); }
-  catch (e) { $("g-msg").textContent = "Gagal: " + e.message; }
+  if (!raw) { $("g-msg").textContent = "Tempel script dulu."; return; }
+  const stripped = raw.replace(/^```(json)?|```$/g, "").trim();
+  try {
+    if (stripped.startsWith("{")) {
+      let spec;
+      try { spec = JSON.parse(stripped); } catch (e) { $("g-msg").textContent = "JSON tidak valid: " + e.message; return; }
+      await api("/api/story/create", { spec });
+      $("g-msg").textContent = "Project dibuat dari JSON. Klik 1. Buat suara di kanan.";
+    } else {
+      const r = await api("/api/story/auto", { text: raw, voice: $("g-voice").value, music: $("g-music").value });
+      $("g-msg").innerHTML = "<b>Rencana adegan:</b><br>" + r.summary.map((x) => esc(x.replace(/\{arrow\}/g, "→").replace(/\{dot\}/g, "●"))).join("<br>") + "<br><br>Klik <b>1. Buat suara</b> di kanan.";
+    }
+    $("g-spec").value = ""; loadStory();
+  } catch (e) { $("g-msg").textContent = "Gagal: " + e.message; }
 };
 $("btn-gkey").onclick = async () => {
   try { await api("/api/story/key", { key: $("g-key").value }); $("g-key").value = ""; loadStory(); }

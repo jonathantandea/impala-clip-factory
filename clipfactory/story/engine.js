@@ -75,6 +75,13 @@ export async function createStory(canvas, base) {
   [[-12, -25], [-5, -24.5], [1.5, -25.5], [8.5, -24.8], [15.5, -25.2], [23, -24.6], [30, -25.5], [-20, -24]]
     .forEach(([x, z], i) => K.palm(scene, x, z, 5 + hash01(i, 6) * 2, i));
 
+  // other sets (built only when a scene uses them)
+  const usedSets = new Set(spec.scenes.map((x) => x.set || spec.world?.set || 'sawah'));
+  const SETS = { sawah: { scene } };
+  if (usedSets.has('laut')) SETS.laut = K.seaSet();
+  if (usedSets.has('kamar')) SETS.kamar = K.roomSet();
+  const setOf = (i) => scenes[i].set || spec.world?.set || 'sawah';
+
   // props
   const props = {};
   (spec.world?.props || []).forEach((p, i) => {
@@ -103,7 +110,9 @@ export async function createStory(canvas, base) {
   Object.entries(spec.characters || {}).forEach(([id, c]) => {
     const shirt = Array.isArray(c.shirt) ? c.shirt : SHIRTS[c.shirt] || SHIRTS.hijau;
     const sarong = Array.isArray(c.sarong) ? c.sarong : SARONGS[c.sarong] || SARONGS.coklat;
-    const ch = K.character(scene, { shirt, sarong, hat: c.hat || null, mustache: !!c.mustache, blush: !!c.blush });
+    const ch = c.type === 'octopus' ? K.octopus(scene, { color: c.color || '#E8704A' })
+      : K.character(scene, { shirt, sarong, hat: c.hat || null, mustache: !!c.mustache, blush: !!c.blush });
+    ch.type = c.type || 'person';
     ch.sack = K.sack(scene); ch.sack.visible = false;
     chars[id] = ch;
   });
@@ -114,6 +123,23 @@ export async function createStory(canvas, base) {
 
   // ---------------------------------------------------------------- helpers
   const groundY = (z) => (z > -1.3 && z < 0.1 ? 0.18 : 0);
+  const castY = (c, z, sc) => {
+    if (c.y != null) return c.y;
+    if (setOf(sc) !== 'sawah') return chars[c.who]?.type === 'octopus' && ['swim', 'idle', 'float'].includes(c.mode || 'idle') ? 0.5 : 0;
+    return groundY(z);
+  };
+  // time inside a scene with a freeze: the world stops at the frozen moment, captions keep going
+  function worldTime(t, sc) {
+    const fz = (scenes[sc].events || []).find((e) => e.type === 'freeze');
+    if (!fz) return t;
+    const ft = wordTime(sc, fz.word, fz.at);
+    return t > ft ? ft : t;
+  }
+  function wordTime(sc, word, at) {
+    const [a, b] = spanOf(sc);
+    if (word) { const w = lineWords(sc).find((x) => x.w.toLowerCase().replace(/[^a-z0-9-]/g, '').startsWith(word.toLowerCase())); if (w) return w.s; }
+    return a + (at ?? (b - a) * 0.5);
+  }
   function castPos(c, i, t, sc) {
     const [a, b] = spanOf(sc);
     const at = c.at || [i * 1.5, -0.6];
@@ -129,7 +155,7 @@ export async function createStory(canvas, base) {
     const ids = s.focus ? [s.focus, ...(props[s.focus] && !['closeup'].includes(s.shot) ? cast.map((c) => c.who) : [])] : cast.map((c) => c.who);
     ids.forEach((id) => {
       const ci = cast.findIndex((c) => c.who === id);
-      if (ci >= 0) { const p = castPos(cast[ci], ci, t, sc); pts.push(V(p.x, groundY(p.z), p.z)); }
+      if (ci >= 0) { const p = castPos(cast[ci], ci, t, sc); pts.push(V(p.x, castY(cast[ci], p.z, sc), p.z)); }
       else if (props[id]) pts.push(props[id].obj.position.clone());
     });
     if (!pts.length) return V(3, 0, -3);
@@ -146,15 +172,28 @@ export async function createStory(canvas, base) {
     high: [[1.5, 7, 7], [0, 0, 0]],
     track: [[2.2, 1.65, 3.4], [-0.6, 1.05, 0]],
   };
+  // an octopus is ~1.4 m tall with its eyes at ~0.6 m: frame its face, not a person's head height
+  const SHOTS_OCTO = {
+    establishing: [[1.5, 5, 10], [0, 0.6, -6]],
+    wide: [[1.8, 2.0, 6.2], [0, 0.8, 0]],
+    medium: [[0.7, 1.2, 3.6], [0, 0.85, 0]],
+    closeup: [[0.3, 1.05, 2.5], [0, 0.9, 0]],
+    low: [[0.6, 0.35, 2.8], [0, 1.0, 0]],
+    high: [[1.2, 5, 5], [0, 0.4, 0]],
+    track: [[1.6, 1.2, 3.6], [-0.4, 0.8, 0]],
+  };
   function placeCamera(t, sc) {
     const s = scenes[sc];
     const [a, b] = spanOf(sc);
+    const z = s.zoom ? lerp(1, s.zoom, E.outCubic(prog(t, a, a + 0.8))) : 1;
+    if (Math.abs(cam.fov - 42 / z) > 1e-4) { cam.fov = 42 / z; cam.updateProjectionMatrix(); }
     const p = clamp((t - a) / Math.max(0.5, b - a));
     const f = focusOf(s, t, sc);
     const shot = SHOTS[s.shot] ? s.shot : (sc === 0 ? 'establishing' : 'medium');
     const side = s.side ?? (sc % 2 ? -1 : 1);
-    const scale = 1 + (f.spread || 0) * 0.45;
-    let [off, look] = SHOTS[shot];
+    const scale = (1 + (f.spread || 0) * 0.45) * (s.dist || 1);
+    const octoFocus = (s.cast || []).some((c) => chars[c.who]?.type === 'octopus') && (!s.focus || chars[s.focus]?.type === 'octopus');
+    let [off, look] = (octoFocus ? SHOTS_OCTO : SHOTS)[shot];
     if (shot === 'establishing') {
       const e = E.inOutCubic(p);
       const [mo, ml] = SHOTS.medium;
@@ -169,8 +208,18 @@ export async function createStory(canvas, base) {
   }
 
   // ---------------------------------------------------------------- frame
-  function updateWorld(t) {
-    const sc = sceneAt(t);
+  function updateWorld(tReal) {
+    const sc = sceneAt(tReal);
+    const t = worldTime(tReal, sc);
+    const active = setOf(sc);
+    if (active === 'laut') {
+      let deep = 0;
+      scenes.forEach((s2, i) => {
+        if (!(s2.events || []).some((e) => e.type === 'deep')) return;
+        const [a, b] = spanOf(i); deep = Math.max(deep, clamp(Math.min((t - a) / 0.8, (b + 0.6 - t) / 0.8)));
+      });
+      SETS.laut.update(t, { deep });
+    }
     clouds.update(t);
     // wind: per-scene strength, eased at scene edges
     let wind = 0.05;
@@ -256,15 +305,18 @@ export async function createStory(canvas, base) {
     // camera first (characters may face it), then the cast
     placeCamera(t, sc);
     const cast = scenes[sc].cast || [];
+    const evs = scenes[sc].events || [];
     Object.entries(chars).forEach(([id, ch]) => {
       const ci = cast.findIndex((c) => c.who === id);
       ch.obj.visible = ci >= 0; ch.sack.visible = false;
       if (ci < 0) return;
+      if (ch.obj.parent !== SETS[active].scene) SETS[active].scene.add(ch.obj);
+      if (ch.sack.parent !== SETS[active].scene) SETS[active].scene.add(ch.sack);
       const c = cast[ci];
       const p = castPos(c, ci, t, sc);
-      const y = groundY(p.z);
+      const y = castY(c, p.z, sc);
       let rot = 0;
-      if (p.walking) rot = p.heading;
+      if (p.walking) rot = ch.type === 'octopus' ? p.heading * 0.35 + Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.65 : p.heading;
       else if (typeof c.face === 'number') rot = c.face;
       else if (c.face === 'left') rot = -Math.PI / 2;
       else if (c.face === 'right') rot = Math.PI / 2;
@@ -274,7 +326,19 @@ export async function createStory(canvas, base) {
         rot = Math.atan2(o.x - p.x, o.z - p.z);
       } else rot = Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.85;   // 'camera' (default)
       const carry = c.pose === 'carry';
+      if (ch.type === 'octopus') {
+        const [a] = spanOf(sc);
+        const hs = evs.find((e) => e.type === 'hearts');
+        const stop = evs.find((e) => e.type === 'heart_stop');
+        const stopT = stop ? wordTime(sc, stop.word, stop.at) : Infinity;
+        const blueOn = scenes.some((s2, i) => i <= sc && (s2.events || []).some((e) => e.type === 'blue') && startOf(i) <= tReal);
+        const swimBob = (c.mode === 'swim') ? Math.sin(t * 1.2 * M.TAU) * 0.08 : 0;
+        ch.pose(t, { x: p.x, y: y + swimBob, z: p.z, rot, mode: c.mode || (p.walking ? 'swim' : 'idle'), mood: c.mood || 'smile',
+          xray: hs ? E.outCubic(prog(tReal, a + 0.2, a + 0.7)) : 0, blue: blueOn ? 1 : 0, stopped: tReal >= stopT ? 1 : 0 });
+        return;
+      }
       ch.pose(t, { x: p.x, y, z: p.z, rot, walk: p.walking, mood: c.mood || 'smile', hold: carry ? 1 : 0, ...poseArms(c.pose, t) });
+      if (c.pose === 'lying') { ch.root.rotation.set(0, 0, Math.PI / 2); ch.root.position.set(p.x + 0.95, y + 0.78, p.z); }
       if (carry) {
         ch.sack.visible = true;
         ch.sack.position.set(p.x + Math.sin(rot) * 0.38, y + 0.44, p.z + Math.cos(rot) * 0.38);
@@ -294,7 +358,7 @@ export async function createStory(canvas, base) {
     const s = 1.18 - 0.18 * k;
     const clean = cur.w.toLowerCase().replace(/[^a-z0-9-]/g, '');
     ctx.save();
-    ctx.translate(W / 2, H * 0.7); ctx.scale(s, s);
+    ctx.translate(W / 2, H * 0.76); ctx.scale(s, s);
     ctx.font = '800 84px Display'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round'; ctx.lineWidth = 14; ctx.strokeStyle = 'rgba(20,16,12,0.92)';
     ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 6;
@@ -305,10 +369,88 @@ export async function createStory(canvas, base) {
     ctx.restore();
   }
 
+  // ---------------------------------------------------------------- on-screen text (titles, labels, freeze flash)
+  function titleAt(t) {
+    let cur = null, from = 0, sc = sceneAt(t);
+    for (let i = 0; i <= sc; i++) if (scenes[i].title !== undefined) { cur = scenes[i].title; from = i; }
+    if (!cur) return null;
+    const s = scenes[from];
+    const t0 = s.title_word ? wordTime(from, s.title_word) : startOf(from) + 0.15;
+    return t >= t0 ? { text: cur, t0 } : null;
+  }
+  function drawTitle(t) {
+    const ti = titleAt(t);
+    if (!ti) return;
+    const k = M.spring(t - ti.t0, M.SPRING.bouncy);
+    const parts = ti.text.split(/(\{arrow\}|\{dot\})/).filter(Boolean);
+    let size = 104;
+    const measure = () => { ctx.font = `800 ${size}px Display`; return parts.reduce((w, p) => w + (p === '{arrow}' ? size * 0.9 : p === '{dot}' ? size * 0.7 : ctx.measureText(p).width), 0); };
+    while (measure() > 960 && size > 46) size -= 4;
+    const total = measure();
+    ctx.save();
+    ctx.translate(W / 2, H * 0.2); ctx.scale(0.7 + 0.3 * k, 0.7 + 0.3 * k); ctx.globalAlpha = clamp(k * 1.5);
+    let x = -total / 2;
+    ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    parts.forEach((p) => {
+      if (p === '{arrow}') {
+        const w = size * 0.9;
+        ctx.lineWidth = size * 0.28; ctx.strokeStyle = 'rgba(20,16,12,0.92)'; ctx.lineCap = 'round';
+        const arrow = (col, lw) => { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x + w * 0.12, 0); ctx.lineTo(x + w * 0.85, 0); ctx.moveTo(x + w * 0.6, -size * 0.22); ctx.lineTo(x + w * 0.86, 0); ctx.lineTo(x + w * 0.6, size * 0.22); ctx.stroke(); };
+        arrow('rgba(20,16,12,0.92)', size * 0.26); arrow('#FFD23F', size * 0.11);
+        x += w; return;
+      }
+      if (p === '{dot}') {
+        const r = size * 0.27;
+        ctx.fillStyle = 'rgba(20,16,12,0.92)'; ctx.beginPath(); ctx.arc(x + size * 0.36, 0, r + 7, 0, M.TAU); ctx.fill();
+        ctx.fillStyle = '#2E86F0'; ctx.beginPath(); ctx.arc(x + size * 0.36, 0, r, 0, M.TAU); ctx.fill();
+        x += size * 0.7; return;
+      }
+      ctx.font = `800 ${size}px Display`; ctx.textAlign = 'left';
+      ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(20,16,12,0.92)'; ctx.strokeText(p, x, 0);
+      ctx.fillStyle = '#FFFFFF'; ctx.fillText(p, x, 0);
+      x += ctx.measureText(p).width;
+    });
+    ctx.restore();
+  }
+  function drawHeartLabels(t, sc) {
+    const evs = scenes[sc].events || [];
+    const hs = evs.find((e) => e.type === 'hearts' && e.labels !== false);
+    if (!hs) return;
+    const oc = Object.values(chars).find((c) => c.type === 'octopus' && c.obj.visible);
+    if (!oc) return;
+    const k = E.outCubic(prog(t, startOf(sc) + 0.5, startOf(sc) + 1.1));
+    const labels = hs.labels || ['insang', 'insang', 'badan'];
+    oc.hearts.forEach((h, i) => {
+      const p = new THREE.Vector3(); h.getWorldPosition(p); p.project(cam);
+      const sx = (p.x * 0.5 + 0.5) * W, sy = (-p.y * 0.5 + 0.5) * H;
+      const lx = sx + (i === 0 ? -170 : i === 1 ? 170 : 0), ly = sy + (i === 2 ? -170 : 60);
+      ctx.save(); ctx.globalAlpha = k;
+      ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(lerp(sx, lx, k), lerp(sy, ly, k)); ctx.stroke();
+      ctx.font = '800 46px Display'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(20,16,12,0.92)'; ctx.strokeText(labels[i], lx, ly);
+      ctx.fillStyle = i === 2 ? '#FFD23F' : '#FFFFFF'; ctx.fillText(labels[i], lx, ly);
+      ctx.restore();
+    });
+  }
+  function drawFreeze(t, sc) {
+    const fz = (scenes[sc].events || []).find((e) => e.type === 'freeze');
+    if (!fz) return;
+    const ft = wordTime(sc, fz.word, fz.at);
+    if (t < ft) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'saturation'; ctx.fillStyle = `rgba(128,128,128,${0.75 * clamp((t - ft) / 0.2)})`; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+    const fl = 1 - clamp((t - ft) / 0.25); if (fl > 0) { ctx.fillStyle = `rgba(255,255,255,${fl * 0.8})`; ctx.fillRect(0, 0, W, H); }
+    ctx.restore();
+  }
+
   function seek(t) {
-    updateWorld(t);
-    R.render(scene, cam);
+    const sc = updateWorld(t);
+    R.render(SETS[setOf(sc)].scene, cam);
     ctx.drawImage(glc, 0, 0);
+    drawFreeze(t, sc);
+    drawHeartLabels(t, sc);
+    drawTitle(t);
     caption(t);
   }
   return { spec, duration: END, seek, scenes: scenes.length };

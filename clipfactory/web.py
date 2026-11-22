@@ -477,6 +477,10 @@ class Handler(BaseHTTPRequestHandler):
                         left -= len(chunk)
                 return self._json({"ok": True, "name": dst.stem})
             body = self._body()
+            if parts == ["api", "story", "auto"]:
+                from .story_auto import build, summary
+                spec = build(body.get("text", ""), voice=body.get("voice") or "brian", music=body.get("music") or "")
+                return self._json({"ok": True, "name": story.create(spec), "summary": summary(spec)})
             if parts == ["api", "story", "create"]:
                 return self._json({"ok": True, "name": story.create(body.get("spec", ""))})
             if parts == ["api", "story", "voice"]:
