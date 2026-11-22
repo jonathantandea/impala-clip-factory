@@ -25,11 +25,12 @@ Contoh lengkap: `docs/examples/botol-pak-karjo.json`.
 
 ## Karakter
 `shirt`: hijau, coklat, biru, merah, ungu, kuning (atau 3 warna hex) · `sarong`: coklat, abu, hijau, merah ·
-`hat`: caping | peci | cap (`capColor`) | toga | (kosong) · `mustache`, `blush`, `whistle` (peluit), `baby` (gendong bayi): true/false · `hair`: warna hex (mis. uban).
+`hat`: caping | peci | cap (`capColor`) | toga | rimba (topi jagawana) | (kosong) · `mustache`, `blush`, `whistle` (peluit), `baby` (gendong bayi): true/false · `hair`: warna hex (mis. uban).
+Hewan hutan: `{"type": "badak"|"rusa"|"babi"|"kancil"|"rangkong"}`, opsi `bucket: true` (bawa ember), `map: true` (bawa peta terbalik). `mode`: idle, cheer, snort, lost, sad, thirsty; `mood`: smile, flat (mata setengah tutup), shock.
 Hewan: `{"type": "octopus"}` (set laut; `mode`: idle, swim, crawl, tired) · `{"type": "wombat"}` (set semak; `mode`: idle, proud; jalan lewat `walk_to`).
 
 ## Set (`scenes[i].set`)
-sawah (default) · laut · kamar · semak (Australia, senja) · kota (Kota Tertib x<0 / Kota Terserah x>0, gerbang di x=0, halte (-14, 4.6), kantor + parkiran x≈-30, angkot (10, 1.6), lampu merah (18, 3.7), sungai + jembatan x=29) · ilustrasi (animasi 2D, `illustration`: usus_kubus)
+sawah (default) · laut · kamar · semak (Australia, senja) · kota (Kota Tertib x<0 / Kota Terserah x>0, gerbang di x=0, halte (-14, 4.6), kantor + parkiran x≈-30, angkot (10, 1.6), lampu merah (18, 3.7), sungai + jembatan x=29) · hutan (hutan hujan, area lapang di (0, 0)) · ilustrasi (animasi 2D, `illustration`: usus_kubus)
 
 ## Properti (`world.props`)
 | type | opsi |
@@ -43,7 +44,9 @@ sawah (default) · laut · kamar · semak (Australia, senja) · kota (Kota Terti
 | `trophy` | piala, `scale` |
 | `clothes` | tumpukan baju berantakan |
 | `bus`, `angkot`, `motor` | kendaraan (set kota), `rot`; bisa ditumpangi lewat `ride` + `seat` dan digerakkan lewat `vehicles` |
-Semua bisa diberi `set` (sawah, laut, kamar, semak).
+| `fruit_tree`, `seedlings`, `dung`, `wallow` (`r`), `path` (`length`), `thicket` (`r`, `count`) | set hutan; berubah lewat event `grow` (buah jatuh, tunas + cahaya, bibit berdesakan, kubangan mengering, jalan tertutup tanaman, semak berduri tumbuh) |
+| `sandal`, `ranger_hat` | barang yang tertinggal (pakai `hidden` + `appear`) |
+Semua bisa diberi `set` (sawah, laut, kamar, semak, kota, hutan).
 Semua: `id`, `x`, `z`, `hidden: true` = tersembunyi sampai event `appear`.
 
 ## Adegan (`scenes[i]` untuk `script[i]`)
@@ -60,10 +63,13 @@ Semua: `id`, `x`, `z`, `hidden: true` = tersembunyi sampai event `appear`.
 - `vehicles`: `[{ "id", "from": [x,z], "to": [x,z], "rot", "dur" | "word", "delay", "ease", "bump" }]`.
 - Penumpang: cast `{ "who", "ride": "angkot", "seat": "driver"|"kiri1"|"kiri2"|"kanan1"|"kanan2", "turn" }` · motor: `"depan"|"belakang"`.
 - Masuk frame: cast `"enter": { "from": [x,y,z], "word": "prit", "hidden": true }`; `"y"` = tinggi berdiri.
-- Pose tambahan: watch (lihat jam), hold_out (minta uang), ride, whistle, lying.
+- Pose tambahan: watch (lihat jam), hold_out (minta uang), ride, whistle, lying, struggle (meronta), panic, hug, thirsty. `mood`: shock (mulut O).
+- Cast `"puff": { "mode": "out"|"in", "word" | "at" }`: hilang / muncul dengan asap. `"hat_off": "topi"`: topi lepas di kata itu; `"hat": false` = tanpa topi.
+- Event baru: `grow {target, from, to, word, delay, dur}` (nilai bertahan setelah adegan), `day {n}` (lencana HARI KE-n), `bubble {who, text, at|word, y, dx}` (balon dialog), `snort {who, at}` (asap kecil dari hidung). `appear` / `disappear` juga bisa diberi `word`.
+- Ilustrasi 2D: `jam_pasir` (`day`), `peta_indonesia` (`label`, titik berkedip di Ujung Kulon), `papan_skor` (`score`), `usus_kubus`.
 
 Opsi atas: `voices` (`{ "narator": "brian", "budi": "george" }`) + baris naskah `{ "text", "speaker", "pause", "gap" }` untuk banyak suara; `caption_color` (hex).
-Format: setiap project bisa dirender 9:16 dan 16:9 (tombol di halaman render). Contoh multi-suara + kota: `docs/examples/kota-part1-berangkat-kerja.json`.
+Format: setiap project bisa dirender 9:16 dan 16:9 (tombol di halaman render). Contoh multi-suara + kota: `docs/examples/kota-part1-berangkat-kerja.json`. Hutan + hewan: `docs/examples/badak-hilang.json`.
 
 Teks layar (`title`) mendukung `{arrow}`, `{dot}`, `{trophy}` (digambar, karena font tidak punya → 🔵 🏆).
 

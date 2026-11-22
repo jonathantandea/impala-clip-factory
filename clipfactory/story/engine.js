@@ -34,6 +34,10 @@ function poseArms(pose, t) {
     case 'hold_out': return { armR: [-1.45, 0, -0.25] };
     case 'ride': return { armL: [-1.2, 0, 0.25], armR: [-1.2, 0, -0.25] };
     case 'whistle': return { armR: [-2.0, 0, -0.9], armL: [-1.0, 0, 0.6] };
+    case 'struggle': return { armL: [-2.2 + Math.sin(t * 11) * 0.5, 0, 0.7], armR: [-2.2 - Math.sin(t * 11) * 0.5, 0, -0.7], look: [Math.sin(t * 5) * 0.3, 0] };
+    case 'panic': return { armL: [0, 0, 2.7], armR: [0, 0, -2.7], look: [Math.sin(t * 9) * 0.25, 0] };
+    case 'hug': return { armL: [-1.35, 0, -0.55], armR: [-1.35, 0, 0.55], look: [0, 0.1] };
+    case 'thirsty': return { armL: [0.1, 0, 0.05], armR: [0.1, 0, -0.05], look: [0, 0.35] };
     default: return {};
   }
 }
@@ -71,7 +75,7 @@ export async function createStory(canvas, base, opts = {}) {
   const sceneAt = (t) => { let k = 0; for (let i = 0; i < scenes.length; i++) if (t >= startOf(i)) k = i; return k; };
   const spanOf = (i) => [startOf(i), i + 1 < scenes.length ? startOf(i + 1) : END];
   const lineWords = (i) => vo.words.filter((w) => w.phrase === scenes[i].line);
-  const eventsUpTo = (t, type) => scenes.flatMap((s, i) => (startOf(i) <= t ? (s.events || []).filter((e) => e.type === type).map((e) => ({ ...e, at: startOf(i), i })) : []));
+  const eventsUpTo = (t, type) => scenes.flatMap((s, i) => (startOf(i) <= t ? (s.events || []).filter((e) => e.type === type).map((e) => ({ ...e, at: e.word ? wordTime(i, e.word) - 0.3 : startOf(i), i })).filter((e) => e.at <= t) : []));
 
   // ---------------------------------------------------------------- world
   const scene = new THREE.Scene();
@@ -99,6 +103,12 @@ export async function createStory(canvas, base, opts = {}) {
   if (usedSets.has('kamar')) SETS.kamar = K.roomSet();
   if (usedSets.has('semak')) SETS.semak = K.scrubSet();
   if (usedSets.has('kota')) SETS.kota = K.townSet();
+  if (usedSets.has('hutan')) {
+    const keep = (spec.world?.props || []).filter((p) => p.set === 'hutan').flatMap((p) => p.type === 'path'
+      ? Array.from({ length: Math.ceil((p.length || 24) / 3) + 1 }, (_, k) => ({ x: p.x + k * 3, z: p.z, r: 3 }))
+      : [{ x: p.x, z: p.z, r: p.clear ?? ({ fruit_tree: 4.5, wallow: (p.r || 2.2) + 2.5, thicket: (p.r || 3) + 1.5 }[p.type] || 2.5) }]);
+    SETS.hutan = K.forestSet([{ x: 0, z: 0, r: 7 }, ...keep, ...(spec.world?.clear || [])]);
+  }
   if (usedSets.has('ilustrasi')) SETS.ilustrasi = { scene: new THREE.Scene(), flat: true };
   const setOf = (i) => scenes[i].set || spec.world?.set || 'sawah';
 
@@ -112,6 +122,14 @@ export async function createStory(canvas, base, opts = {}) {
     else if (p.type === 'angkot') { o = K.angkot(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
     else if (p.type === 'motor') { o = K.motorbike(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
     else if (p.type === 'flat_rock') o = K.flatRock(scene, p.x, p.z);
+    else if (['fruit_tree', 'seedlings', 'dung', 'wallow', 'path', 'thicket', 'sandal', 'ranger_hat'].includes(p.type)) {
+      o = p.type === 'fruit_tree' ? K.fruitTree(scene) : p.type === 'seedlings' ? K.seedlings(scene) : p.type === 'dung' ? K.dung(scene)
+        : p.type === 'wallow' ? K.wallow(scene, { r: p.r || 2.2 }) : p.type === 'path' ? K.footpath(scene, { length: p.length || 24 })
+        : p.type === 'thicket' ? K.thicket(scene, { r: p.r || 3, count: p.count || 16 }) : p.type === 'sandal' ? K.sandal(scene)
+        : (() => { const g = new THREE.Group(); scene.add(g); K.rangerHat(g); return { obj: g }; })();
+      o.obj.position.set(p.x, p.y || 0, p.z); o.obj.rotation.y = p.rot || 0; if (p.scale) o.obj.scale.setScalar(p.scale);
+      o.grows = !!o.update;
+    }
     else if (p.type === 'cubes') {
       const host = p.on && props[p.on];
       o = K.cubes(scene, p.count ?? 5, host ? host.top || 0 : 0);
@@ -143,6 +161,8 @@ export async function createStory(canvas, base, opts = {}) {
     const sarong = Array.isArray(c.sarong) ? c.sarong : SARONGS[c.sarong] || SARONGS.coklat;
     const ch = c.type === 'octopus' ? K.octopus(scene, { color: c.color || '#E8704A' })
       : c.type === 'wombat' ? K.wombat(scene, { color: c.color || '#8C6A50' })
+      : ['badak', 'rusa', 'babi', 'kancil'].includes(c.type) ? K.beast(scene, { kind: c.type, color: c.color, bucket: !!c.bucket, map: !!c.map })
+      : c.type === 'rangkong' ? K.hornbill(scene, { bucket: !!c.bucket })
       : K.character(scene, { shirt, sarong, hat: c.hat || null, mustache: !!c.mustache, blush: !!c.blush,
         hair: c.hair, whistle: !!c.whistle, baby: !!c.baby, capColor: c.capColor });
     ch.type = c.type || 'person';
@@ -153,6 +173,22 @@ export async function createStory(canvas, base, opts = {}) {
   // birds
   const flock = Array.from({ length: 14 }, (_, i) => { const b = K.bird(scene); b.h = [hash01(i, 21), hash01(i, 22), hash01(i, 23)]; return b; });
   const perchBirds = [0, 1, 2].map(() => K.bird(scene));
+
+  // growable props: value 0..1 set by "grow" events {target, from, to, word, delay, dur}; it holds after the scene
+  function growK(id, t) {
+    let v = props[id]?.spec.k ?? 0;
+    for (let i = 0; i < scenes.length; i++) {
+      if (startOf(i) > t) break;
+      (scenes[i].events || []).filter((e) => e.type === 'grow' && e.target === id).forEach((e) => {
+        const [a, b] = spanOf(i);
+        const t0 = a + (e.delay || 0), t1 = e.word ? wordTime(i, e.word) : a + (e.dur ?? (b - a));
+        v = lerp(e.from ?? v, e.to ?? 1, (e.ease === 'linear' ? (x) => x : E.inOutSine)(prog(t, t0, Math.max(t0 + 0.05, t1))));
+      });
+    }
+    return v;
+  }
+  const puffs = [];
+  const getPuff = (n, sceneObj) => { while (puffs.length <= n) puffs.push(K.puff(sceneObj)); const pf = puffs[n]; if (pf.obj.parent !== sceneObj) sceneObj.add(pf.obj); return pf; };
 
   // ---------------------------------------------------------------- helpers
   const groundY = (z) => (z > -1.3 && z < 0.1 ? 0.18 : 0);
@@ -315,6 +351,7 @@ export async function createStory(canvas, base, opts = {}) {
       if (ap) k = E.outBack(prog(t, ap.at + 0.3, ap.at + 0.8), 1.8);
       if (dis && (!ap || dis.at >= ap.at)) k = 0;
       o.obj.visible = k > 0.001; o.obj.scale.setScalar(Math.max(0.001, k));
+      if (o.grows) o.update(t, growK(o.id, t));
       if (o.spec.type === 'scarecrow') {
         const r = eventsUpTo(t, 'raise').filter((e) => e.target === o.id).pop();
         const tilt = o.spec.fallen ? (r ? lerp(1.15, 0, M.spring(t - r.at - 0.8, M.SPRING.bouncy)) : 1.15) : 0;
@@ -378,11 +415,14 @@ export async function createStory(canvas, base, opts = {}) {
     placeCamera(t, sc);
     const cast = scenes[sc].cast || [];
     const evs = scenes[sc].events || [];
+    puffs.forEach((pf) => { pf.obj.visible = false; });
+    let puffN = 0;
     Object.entries(chars).forEach(([id, ch]) => {
       const ci = cast.findIndex((c) => c.who === id);
       ch.obj.visible = ci >= 0; ch.sack.visible = false;
       if (ci < 0) return;
       if (ch.obj.parent !== SETS[active].scene) SETS[active].scene.add(ch.obj);
+      if (ch.hat) ch.hat.visible = c0visible(cast[ci], t, sc);
       if (ch.sack.parent !== SETS[active].scene) SETS[active].scene.add(ch.sack);
       const c = cast[ci];
       let p = castPos(c, ci, t, sc);
@@ -404,8 +444,17 @@ export async function createStory(canvas, base, opts = {}) {
         y = lerp(fr[1], y, k);
         if (t < te && c.enter.hidden) { ch.obj.visible = false; return; }
       }
+      if (c.puff) {                               // pops in / out in a puff of smoke
+        const tp = c.puff.word ? wordTime(sc, c.puff.word) : spanOf(sc)[0] + (c.puff.at ?? 0.3);
+        const kp = (t - tp + 0.12) / 0.9;
+        const size = c.puff.size ?? (ch.animal ? (ch.height || 1) * 1.1 : 1.6);
+        if (kp > 0 && kp < 1) getPuff(puffN++, SETS[active].scene).set(kp, p.x, y + size * 0.45, p.z, size);
+        const shown = c.puff.mode === 'in' ? t >= tp : t < tp;
+        if (!shown) { ch.obj.visible = false; return; }
+      }
       let rot = 0;
       if (rideRot != null) rot = rideRot;
+      else if (p.walking && ch.animal) rot = p.heading;
       else if (p.walking) rot = ch.type === 'octopus' || ch.type === 'wombat' ? p.heading * 0.35 + Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.65 : p.heading;
       else if (typeof c.face === 'number') rot = c.face;
       else if (c.face === 'left') rot = -Math.PI / 2;
@@ -416,6 +465,10 @@ export async function createStory(canvas, base, opts = {}) {
         rot = Math.atan2(o.x - p.x, o.z - p.z);
       } else rot = Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.85;   // 'camera' (default)
       const carry = c.pose === 'carry';
+      if (ch.animal) {
+        ch.pose(t, { x: p.x, y, z: p.z, rot, mode: p.walking ? 'walk' : (c.mode || 'idle'), mood: c.mood || 'smile' });
+        return;
+      }
       if (ch.type === 'wombat') {
         ch.pose(t, { x: p.x, y, z: p.z, rot, mode: p.walking ? 'walk' : (c.mode || 'idle'), mood: c.mood || 'smile' });
         return;
@@ -432,6 +485,7 @@ export async function createStory(canvas, base, opts = {}) {
         return;
       }
       ch.pose(t, { x: p.x, y, z: p.z, rot, walk: p.walking, mood: c.mood || 'smile', hold: carry ? 1 : 0, sit: c.ride || c.sit ? 1 : 0, ...poseArms(c.pose || (c.ride && props[c.ride]?.spec.type === 'motor' && c.seat !== 'belakang' ? 'ride' : null), t) });
+      if (c.pose === 'struggle') { ch.root.rotation.z = Math.sin(t * 10) * 0.07; ch.root.position.x += Math.sin(t * 13) * 0.03; } else ch.root.rotation.z = 0;
       if (c.pose === 'lying') { ch.root.rotation.set(0, 0, Math.PI / 2); ch.root.position.set(p.x + 0.95, y + 0.78, p.z); }
       if (carry) {
         ch.sack.visible = true;
@@ -439,8 +493,15 @@ export async function createStory(canvas, base, opts = {}) {
         ch.sack.rotation.set(0, rot, 0.1);
       }
     });
+    evs.filter((e) => e.type === 'snort').forEach((e) => {   // small puffs from an animal's nose
+      const ch = chars[e.who]; if (!ch || !ch.obj.visible || !ch.nose) return;
+      const ts = e.word ? wordTime(sc, e.word) : spanOf(sc)[0] + (e.at ?? 0.5);
+      const np = new THREE.Vector3(); ch.nose.getWorldPosition(np);
+      [0, 0.35].forEach((dt) => { const k = (t - ts - dt) / 0.7; if (k > 0 && k < 1) getPuff(puffN++, SETS[active].scene).set(k, np.x, np.y, np.z, 0.28); });
+    });
     return sc;
   }
+  function c0visible(c, t, sc) { return c.hat !== false && !(c.hat_off && t >= wordTime(sc, c.hat_off)); }
 
   const ILLUS_EXTRA = {};   // illustrations registered by overlay helpers below
   const KEY = new Set((spec.keywords || []).map((k) => k.toLowerCase()));
@@ -596,6 +657,127 @@ export async function createStory(canvas, base, opts = {}) {
     if (blink) { const ins = 'PART 1'; pixText(ins, W / 2 - tw(ins) * 0.5 / 2, H * (LAND ? 0.62 : 0.6), px * 0.5, '#FFD23F'); }
   };
 
+  // "HARI KE-30" badge
+  function drawDay(t, sc) {
+    const ev = (scenes[sc].events || []).find((e) => e.type === 'day');
+    if (!ev) return;
+    const t0 = ev.word ? wordTime(sc, ev.word) : spanOf(sc)[0] + (ev.at ?? 0.2);
+    if (t < t0) return;
+    const k = M.spring(t - t0, M.SPRING.bouncy);
+    const txt = ev.text || `HARI KE-${ev.n ?? 1}`;
+    ctx.save(); ctx.translate(W / 2, H * (LAND ? 0.3 : 0.32)); ctx.scale(k * UI, k * UI); ctx.rotate(-0.04);
+    ctx.font = '800 84px Display'; const w = ctx.measureText(txt).width + 90;
+    ctx.fillStyle = 'rgba(20,16,12,0.9)'; ctx.beginPath(); ctx.roundRect(-w / 2, -66, w, 132, 26); ctx.fill();
+    ctx.strokeStyle = '#FF7A45'; ctx.lineWidth = 7; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#FFFFFF'; ctx.fillText(txt, 0, 6);
+    ctx.restore();
+  }
+  // comic speech bubble over a character: {type: bubble, who, text, word|at, dur}
+  function drawBubble(t, sc) {
+    (scenes[sc].events || []).filter((e) => e.type === 'bubble').forEach((e) => {
+      const ch = chars[e.who]; if (!ch || !ch.obj.visible) return;
+      const t0 = e.word ? wordTime(sc, e.word) : spanOf(sc)[0] + (e.at ?? 0.3);
+      if (t < t0 || (e.dur && t > t0 + e.dur)) return;
+      const p = new THREE.Vector3(); ch.obj.getWorldPosition(p); p.y += e.y ?? (ch.height ? ch.height + 0.4 : 2.3); p.project(cam);
+      const sx = (p.x * 0.5 + 0.5) * W + (e.dx || 0), sy = (-p.y * 0.5 + 0.5) * H;
+      const k = M.spring(t - t0, M.SPRING.bouncy);
+      ctx.save(); ctx.translate(sx, sy); ctx.scale(k * UI, k * UI);
+      ctx.font = '800 64px Display'; const w = ctx.measureText(e.text).width + 70, h = 110;
+      ctx.fillStyle = '#FFFFFF'; ctx.strokeStyle = 'rgba(20,16,12,0.95)'; ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.roundRect(-w / 2, -h - 40, w, h, 40); ctx.moveTo(-18, -42); ctx.lineTo(0, 0); ctx.lineTo(22, -42); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-14, -48, 34, 12);
+      ctx.fillStyle = '#1E1B19'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(e.text, 0, -h / 2 - 36);
+      ctx.restore();
+    });
+  }
+  // hourglass flip + "HARI KE-n"
+  ILLUS_EXTRA.jam_pasir = (p, t, s2) => {
+    const u = Math.min(W, H) / 1080;
+    const g = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, Math.max(W, H) * 0.7); g.addColorStop(0, '#3B2F5C'); g.addColorStop(1, '#17122A');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const flip = E.inOutCubic(prog(p, 0.02, 0.18));
+    const sand = prog(p, 0.18, 1);
+    const v = LAND ? u * 0.72 : u;
+    const cx = LAND ? W * 0.36 : W / 2, cy = H * (LAND ? 0.5 : 0.44), hw = 150 * v, hh = 230 * v;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI * (1 - flip) + (flip < 1 ? 0 : Math.sin(t * 2) * 0.02));
+    const glass = () => { ctx.beginPath(); ctx.moveTo(-hw, -hh); ctx.lineTo(hw, -hh); ctx.bezierCurveTo(hw, -hh * 0.35, 18 * u, -24 * u, 18 * u, 0); ctx.bezierCurveTo(18 * u, 24 * u, hw, hh * 0.35, hw, hh); ctx.lineTo(-hw, hh);
+      ctx.bezierCurveTo(-hw, hh * 0.35, -18 * u, 24 * u, -18 * u, 0); ctx.bezierCurveTo(-18 * u, -24 * u, -hw, -hh * 0.35, -hw, -hh); ctx.closePath(); };
+    ctx.fillStyle = 'rgba(200,230,255,0.16)'; glass(); ctx.fill();
+    ctx.save(); glass(); ctx.clip();
+    const top = flip < 1 ? 0 : 1 - sand;            // sand fraction in the top bulb (after the flip)
+    ctx.fillStyle = '#F2C14E';
+    if (flip < 1) ctx.fillRect(-hw, hh * 0.25, hw * 2, hh * 0.75);      // before flip: sand sits at the (visually upper) end
+    else {
+      ctx.fillRect(-hw, -hh * 0.05 - top * hh * 0.7 + hh * 0.05, hw * 2, top * hh * 0.7);
+      ctx.beginPath(); ctx.moveTo(-hw, hh); ctx.lineTo(hw, hh); ctx.lineTo(hw * 0.6, hh - sand * hh * 0.75); ctx.lineTo(0, hh - sand * hh * 0.9 - 10 * u); ctx.lineTo(-hw * 0.6, hh - sand * hh * 0.75); ctx.closePath(); ctx.fill();
+      if (sand < 1) ctx.fillRect(-3 * u, 0, 6 * u, hh);
+    }
+    ctx.restore();
+    ctx.strokeStyle = '#E8F4FF'; ctx.lineWidth = 8 * u; glass(); ctx.stroke();
+    ctx.fillStyle = '#8A5A34'; [-1, 1].forEach((d) => { ctx.beginPath(); ctx.roundRect(-hw - 40 * u, d * hh - (d < 0 ? 34 : 0) * u, hw * 2 + 80 * u, 34 * u, 12 * u); ctx.fill(); });
+    ctx.restore();
+    const k = M.spring((p - 0.16) * 6, M.SPRING.bouncy);
+    if (p > 0.16) {
+      ctx.save(); if (LAND) ctx.translate(W * 0.64, cy); else ctx.translate(W / 2, cy + hh + 190 * u); ctx.scale(k * UI, k * UI);
+      ctx.font = '800 120px Display'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      ctx.lineWidth = 18; ctx.strokeStyle = 'rgba(20,16,12,0.95)'; const txt = s2.day_text || `HARI KE-${s2.day ?? 1}`;
+      ctx.strokeText(txt, 0, 0); ctx.fillStyle = '#FFD23F'; ctx.fillText(txt, 0, 0); ctx.restore();
+    }
+  };
+  // map of Indonesia, a blinking dot on Ujung Kulon (zooms in on Java in the second half)
+  const ISLANDS = [
+    [[95.3,5.6],[97.5,5.2],[98.7,3.8],[100.4,2.3],[101.4,1.9],[103.8,1.1],[104.5,-1.0],[106.0,-3.2],[105.8,-5.9],[104.5,-5.9],[102.3,-4.0],[101.0,-2.5],[99.0,0.0],[98.7,1.7],[97.1,3.5]],
+    [[105.2,-6.8],[106.0,-6.0],[108.3,-6.3],[110.4,-6.9],[112.6,-6.9],[114.4,-7.7],[114.6,-8.7],[112.0,-8.3],[110.0,-8.1],[108.0,-7.8],[106.4,-7.4],[105.4,-6.9]],
+    [[105.2,-1.6],[106.4,-2.0],[106.7,-3.0],[105.8,-2.4]],
+    [[114.4,-8.1],[115.7,-8.4],[115.2,-8.8],[114.5,-8.5]],
+    [[115.9,-8.3],[116.7,-8.3],[119.0,-8.2],[119.2,-8.7],[116.5,-8.9],[115.9,-8.8]],
+    [[119.8,-8.4],[123.0,-8.2],[122.8,-8.7],[120.0,-8.8]],
+    [[119.0,-9.4],[120.8,-9.9],[120.5,-10.3],[119.0,-9.8]],
+    [[123.5,-10.2],[125.2,-9.0],[127.3,-8.4],[127.0,-8.8],[124.4,-10.0],[123.6,-10.4]],
+    [[109.0,1.5],[109.6,2.0],[111.0,1.6],[113.0,3.2],[115.4,5.0],[116.8,6.9],[117.7,6.4],[119.2,5.3],[118.0,4.3],[117.7,2.0],[118.9,1.0],[117.5,0.0],[116.6,-1.4],[116.5,-3.3],[114.6,-4.0],[113.0,-3.2],[111.6,-3.4],[110.2,-2.9],[109.6,-1.0],[108.9,0.4]],
+    [[119.4,-5.5],[119.6,-3.5],[118.8,-2.7],[119.3,-1.0],[119.8,0.1],[120.3,0.8],[121.0,1.3],[123.0,0.9],[124.3,1.4],[125.2,1.6],[124.5,0.4],[123.2,0.5],[121.1,0.4],[120.3,-0.8],[121.6,-1.0],[123.4,-0.9],[121.8,-1.9],[122.3,-3.2],[123.2,-4.6],[122.0,-4.6],[121.3,-3.0],[120.6,-2.7],[120.9,-4.0],[120.4,-5.6]],
+    [[127.8,1.8],[128.6,1.2],[128.0,0.5],[128.8,-0.5],[127.9,-0.8],[127.4,0.6]],
+    [[128.0,-3.2],[130.8,-3.4],[130.6,-3.9],[128.2,-3.6]],
+    [[126.0,-3.1],[127.2,-3.3],[126.9,-3.8],[126.1,-3.6]],
+    [[131.0,-1.4],[132.3,-0.4],[134.0,-0.9],[134.3,-2.4],[135.5,-3.4],[137.6,-1.5],[139.0,-2.0],[141.0,-2.6],[141.0,-9.1],[139.9,-8.1],[138.0,-8.4],[137.6,-7.5],[138.7,-6.6],[136.0,-4.8],[134.1,-3.9],[133.4,-4.0],[132.0,-2.8],[133.0,-2.3],[131.9,-1.6]],
+  ];
+  ILLUS_EXTRA.peta_indonesia = (p, t, s2) => {
+    ctx.fillStyle = '#1F6F8B'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 2;
+    for (let x = 0; x < W; x += 90) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 90) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    const mapW = W * 0.92, sc0 = mapW / 47.5, UK = [105.35, -6.78];
+    const proj = (lon, lat) => [(lon - 117.75) * sc0, -(lat + 2.5) * sc0];
+    const zk = E.inOutCubic(prog(p, 0.38, 0.62)), z = 1 + 1.5 * zk;
+    const [ux, uy] = proj(...UK);
+    const fx = lerp(0, ux * 0.85, zk), fy = lerp(0, uy * 0.85, zk);
+    ctx.save(); ctx.translate(W / 2, H * (LAND ? 0.5 : 0.46)); ctx.scale(z, z); ctx.translate(-fx, -fy);
+    const intro = E.outCubic(prog(p, 0, 0.12));
+    ctx.globalAlpha = intro;
+    ISLANDS.forEach((isl, i) => {
+      ctx.beginPath(); isl.forEach(([lo, la], k) => { const [x, y] = proj(lo, la); if (k) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath();
+      ctx.fillStyle = i === 1 ? '#9ED36A' : '#7DBF57'; ctx.fill(); ctx.lineJoin = 'round'; ctx.strokeStyle = '#2E5A2A'; ctx.lineWidth = 3 / z; ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+    const dk = prog(p, 0.12, 0.2);
+    if (dk > 0) {
+      const pulse = (t * 1.2) % 1;
+      ctx.strokeStyle = `rgba(255,80,60,${1 - pulse})`; ctx.lineWidth = 5 / z; ctx.beginPath(); ctx.arc(ux, uy, (14 + pulse * 46) / z, 0, M.TAU); ctx.stroke();
+      ctx.fillStyle = Math.floor(t * 3) % 2 ? '#FF5A3C' : '#FFD23F'; ctx.beginPath(); ctx.arc(ux, uy, (12 * E.outBack(dk, 2)) / z, 0, M.TAU); ctx.fill();
+      ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(ux, uy, 4 / z, 0, M.TAU); ctx.fill();
+    }
+    ctx.restore();
+    const lk = M.spring((p - 0.62) * 8, M.SPRING.bouncy);
+    if (p > 0.62) {
+      ctx.save(); ctx.translate(W / 2, H * (LAND ? 0.72 : 0.62)); ctx.scale(lk * UI, lk * UI);
+      ctx.font = '800 76px Display'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+      const txt = s2.label || 'UJUNG KULON'; const w = ctx.measureText(txt).width + 70;
+      ctx.fillStyle = 'rgba(20,16,12,0.9)'; ctx.beginPath(); ctx.roundRect(-w / 2, -60, w, 120, 28); ctx.fill();
+      ctx.strokeStyle = '#FF5A3C'; ctx.lineWidth = 6; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.fillText(txt, 0, 4);
+      ctx.restore();
+    }
+  };
+
   function drawFreeze(t, sc) {
     const fz = (scenes[sc].events || []).find((e) => e.type === 'freeze');
     if (!fz) return;
@@ -669,6 +851,8 @@ export async function createStory(canvas, base, opts = {}) {
     }
     drawFreeze(t, sc);
     drawClock(t, sc);
+    drawDay(t, sc);
+    drawBubble(t, sc);
     drawHeartLabels(t, sc);
     drawTitle(t);
     caption(t);

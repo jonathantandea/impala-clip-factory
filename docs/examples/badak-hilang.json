@@ -1,0 +1,852 @@
+{
+  "title": "Ini Jadinya Kalau Tidak Ada Badak",
+  "voice": "brian",
+  "voices": {
+    "narator": "brian",
+    "udin": "charlie",
+    "bibit": "jessica",
+    "rusa": "sarah",
+    "kancil": "liam"
+  },
+  "language": "id",
+  "music": "ceria",
+  "caption_color": "#FFD23F",
+  "script": [
+    {
+      "text": "Satu hari, semua badak hilang dari hutan.",
+      "speaker": "narator",
+      "gap": 1.6
+    },
+    {
+      "text": "Santai. Cuma satu hewan. Hutan aman.",
+      "speaker": "udin",
+      "gap": 0.8
+    },
+    {
+      "text": "Salah besar. Mulai hari pertama, masalah datang satu-satu.",
+      "speaker": "narator",
+      "gap": 1.4
+    },
+    {
+      "text": "Badak itu kurir biji. Badak sumatera bantu menyebarkan biji sekitar tujuh puluh sembilan jenis tumbuhan.",
+      "speaker": "narator",
+      "gap": 1.2
+    },
+    {
+      "text": "Caranya? Lewat pup. Bijinya ikut jalan-jalan, lalu tumbuh di pupuk gratis.",
+      "speaker": "narator",
+      "gap": 1.2
+    },
+    {
+      "text": "Tanpa badak, biji numpuk di bawah induknya dan rebutan tempat.",
+      "speaker": "narator",
+      "gap": 0.3
+    },
+    {
+      "text": "Minggir!",
+      "speaker": "bibit",
+      "gap": 1.2
+    },
+    {
+      "text": "Badak juga rajin memangkas dedaunan di lantai hutan. Tanpa mereka, hutan bisa jadi rapat dan berduri.",
+      "speaker": "narator",
+      "gap": 1.6
+    },
+    {
+      "text": "Aduh! Sandal gue! Topi gue!",
+      "speaker": "udin",
+      "gap": 1.2
+    },
+    {
+      "text": "Kubangan lumpur bikinan badak? Kering. Padahal itu tempat minum hewan lain.",
+      "speaker": "narator",
+      "gap": 1.0
+    },
+    {
+      "text": "Airnya mana?",
+      "speaker": "rusa",
+      "gap": 1.2
+    },
+    {
+      "text": "Jalan setapak yang biasa dibuka badak juga dipakai hewan lain. Lama-lama, hilang.",
+      "speaker": "narator",
+      "gap": 1.0
+    },
+    {
+      "text": "Ini di mana?",
+      "speaker": "kancil",
+      "gap": 1.4
+    },
+    {
+      "text": "Oke! Badak penting! Balikin badaknya, sekarang!",
+      "speaker": "udin",
+      "gap": 2.2
+    },
+    {
+      "text": "Masalahnya, di dunia nyata badak nggak bisa muncul lagi pakai asap.",
+      "speaker": "narator",
+      "gap": 1.2
+    },
+    {
+      "text": "Badak jawa tinggal puluhan ekor, dan cuma ada di Ujung Kulon. Satu-satunya di dunia.",
+      "speaker": "narator",
+      "gap": 1.6
+    },
+    {
+      "text": "Jangan pergi lagi, Do.",
+      "speaker": "udin"
+    }
+  ],
+  "characters": {
+    "udin": {
+      "shirt": [
+        "#8A7B4E",
+        "#6B5E38",
+        "#C9B46A"
+      ],
+      "sarong": [
+        "#4A5A3A",
+        "#2F3A24"
+      ],
+      "hat": "rimba",
+      "mustache": true
+    },
+    "bado": {
+      "type": "badak"
+    },
+    "rusa": {
+      "type": "rusa",
+      "bucket": true
+    },
+    "babi": {
+      "type": "babi",
+      "bucket": true
+    },
+    "rangkong": {
+      "type": "rangkong",
+      "bucket": true
+    },
+    "kancil": {
+      "type": "kancil",
+      "map": true
+    }
+  },
+  "world": {
+    "props": [
+      {
+        "type": "fruit_tree",
+        "id": "pohon",
+        "x": -12,
+        "z": -4,
+        "set": "hutan"
+      },
+      {
+        "type": "seedlings",
+        "id": "bibit",
+        "x": -12,
+        "z": -2.2,
+        "set": "hutan",
+        "hidden": true
+      },
+      {
+        "type": "dung",
+        "id": "pup",
+        "x": -5,
+        "z": 3,
+        "set": "hutan"
+      },
+      {
+        "type": "thicket",
+        "id": "semak",
+        "x": 8,
+        "z": 3,
+        "r": 3.2,
+        "set": "hutan"
+      },
+      {
+        "type": "wallow",
+        "id": "kubangan",
+        "x": -3,
+        "z": -10,
+        "r": 2.2,
+        "set": "hutan"
+      },
+      {
+        "type": "path",
+        "id": "jalan",
+        "x": 14,
+        "z": -6,
+        "length": 24,
+        "set": "hutan"
+      },
+      {
+        "type": "sandal",
+        "id": "sandal",
+        "x": 9.3,
+        "z": 5.9,
+        "rot": 0.6,
+        "set": "hutan",
+        "hidden": true
+      },
+      {
+        "type": "ranger_hat",
+        "id": "topi",
+        "x": 6.9,
+        "y": 1.45,
+        "z": 4.3,
+        "rot": 0.3,
+        "set": "hutan",
+        "hidden": true
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "set": "hutan",
+      "title": "BADAK HILANG",
+      "title_word": "hilang",
+      "cast": [
+        {
+          "who": "bado",
+          "at": [
+            0,
+            0
+          ],
+          "face": 0.5,
+          "puff": {
+            "mode": "out",
+            "word": "hilang"
+          }
+        }
+      ],
+      "cam": {
+        "pos": [
+          3.4,
+          2.1,
+          6.4
+        ],
+        "look": [
+          0,
+          0.9,
+          0
+        ],
+        "to": {
+          "pos": [
+            3.0,
+            2.0,
+            5.6
+          ],
+          "look": [
+            0,
+            0.9,
+            0
+          ]
+        }
+      },
+      "cam_9x16": {
+        "pos": [
+          3.2,
+          2.3,
+          7.8
+        ],
+        "look": [
+          0,
+          0.9,
+          0
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "AMAN?",
+      "cast": [
+        {
+          "who": "udin",
+          "at": [
+            0.4,
+            0.5
+          ],
+          "pose": "shrug",
+          "mood": "smile"
+        }
+      ],
+      "cam": {
+        "pos": [
+          1.0,
+          1.6,
+          4.0
+        ],
+        "look": [
+          0.4,
+          1.25,
+          0.5
+        ]
+      }
+    },
+    {
+      "set": "ilustrasi",
+      "illustration": "jam_pasir",
+      "day": 1,
+      "title": "SALAH BESAR"
+    },
+    {
+      "set": "hutan",
+      "title": "KURIR BIJI",
+      "events": [
+        {
+          "type": "grow",
+          "target": "pohon"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -8.2,
+          2.4,
+          7.6
+        ],
+        "look": [
+          -12,
+          2.5,
+          -3
+        ]
+      },
+      "cam_9x16": {
+        "pos": [
+          -10.6,
+          2.6,
+          9.6
+        ],
+        "look": [
+          -12,
+          3.0,
+          -3
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "PUP = PUPUK",
+      "events": [
+        {
+          "type": "grow",
+          "target": "pup"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -4.3,
+          0.95,
+          4.9
+        ],
+        "look": [
+          -5,
+          0.45,
+          3
+        ],
+        "to": {
+          "pos": [
+            -4.5,
+            0.85,
+            4.4
+          ],
+          "look": [
+            -5,
+            0.45,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "REBUTAN",
+      "events": [
+        {
+          "type": "appear",
+          "target": "bibit"
+        },
+        {
+          "type": "grow",
+          "target": "bibit"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -11.3,
+          1.0,
+          0.6
+        ],
+        "look": [
+          -12,
+          0.35,
+          -2.3
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "cam": {
+        "pos": [
+          -11.85,
+          0.62,
+          -0.9
+        ],
+        "look": [
+          -12,
+          0.45,
+          -2.05
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "BERDURI",
+      "events": [
+        {
+          "type": "day",
+          "n": 30
+        },
+        {
+          "type": "grow",
+          "target": "semak"
+        }
+      ],
+      "cam": {
+        "pos": [
+          8,
+          1.5,
+          10.5
+        ],
+        "look": [
+          8,
+          1.0,
+          3
+        ],
+        "to": {
+          "pos": [
+            8,
+            1.2,
+            8.2
+          ],
+          "look": [
+            8,
+            1.0,
+            3
+          ]
+        }
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "ADUH!",
+      "events": [
+        {
+          "type": "appear",
+          "target": "sandal",
+          "word": "sandal"
+        },
+        {
+          "type": "appear",
+          "target": "topi",
+          "word": "topi"
+        }
+      ],
+      "cast": [
+        {
+          "who": "udin",
+          "at": [
+            8,
+            4.9
+          ],
+          "pose": "struggle",
+          "mood": "shock",
+          "hat_off": "topi"
+        }
+      ],
+      "cam": {
+        "pos": [
+          9.4,
+          1.6,
+          9.2
+        ],
+        "look": [
+          8.2,
+          1.15,
+          4.8
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "KERING",
+      "events": [
+        {
+          "type": "grow",
+          "target": "kubangan",
+          "word": "kering"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -3,
+          3.4,
+          -4.6
+        ],
+        "look": [
+          -3,
+          0,
+          -10
+        ]
+      },
+      "cam_9x16": {
+        "pos": [
+          -3,
+          6.8,
+          0.8
+        ],
+        "look": [
+          -3,
+          0,
+          -9.6
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "AIRNYA MANA?",
+      "cast": [
+        {
+          "who": "rusa",
+          "at": [
+            -2.4,
+            -7.2
+          ],
+          "face": "camera",
+          "mode": "sad"
+        },
+        {
+          "who": "rangkong",
+          "at": [
+            -1.0,
+            -6.8
+          ],
+          "face": "camera",
+          "mode": "sad"
+        },
+        {
+          "who": "babi",
+          "at": [
+            0.4,
+            -6.4
+          ],
+          "face": "camera",
+          "mode": "sad"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -0.6,
+          1.5,
+          -2.2
+        ],
+        "look": [
+          -1.5,
+          0.95,
+          -7.5
+        ]
+      },
+      "cam_9x16": {
+        "pos": [
+          -0.4,
+          1.6,
+          0.6
+        ],
+        "look": [
+          -1.0,
+          0.9,
+          -7.0
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "JALAN HILANG",
+      "events": [
+        {
+          "type": "grow",
+          "target": "jalan"
+        }
+      ],
+      "cam": {
+        "pos": [
+          12.2,
+          1.3,
+          -4.0
+        ],
+        "look": [
+          24,
+          0.2,
+          -6.3
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "TERSESAT",
+      "cast": [
+        {
+          "who": "kancil",
+          "at": [
+            20,
+            -6
+          ],
+          "face": "camera",
+          "mode": "lost"
+        }
+      ],
+      "cam": {
+        "pos": [
+          20.5,
+          0.85,
+          -3.8
+        ],
+        "look": [
+          20,
+          0.6,
+          -6
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "BALIKIN!",
+      "cast": [
+        {
+          "who": "udin",
+          "at": [
+            8,
+            4.9
+          ],
+          "pose": "panic",
+          "mood": "shock",
+          "hat": false
+        },
+        {
+          "who": "rusa",
+          "at": [
+            5.9,
+            6.2
+          ],
+          "face": "camera",
+          "mode": "thirsty"
+        },
+        {
+          "who": "rangkong",
+          "at": [
+            4.9,
+            5.2
+          ],
+          "face": "camera",
+          "mode": "thirsty"
+        },
+        {
+          "who": "kancil",
+          "at": [
+            9.8,
+            6.4
+          ],
+          "face": "camera",
+          "mode": "lost"
+        },
+        {
+          "who": "babi",
+          "at": [
+            10.9,
+            5.4
+          ],
+          "face": "camera",
+          "mode": "thirsty"
+        }
+      ],
+      "cam": {
+        "pos": [
+          8,
+          1.9,
+          12.2
+        ],
+        "look": [
+          8,
+          1.0,
+          5
+        ]
+      },
+      "cam_9x16": {
+        "pos": [
+          8,
+          2.0,
+          12.8
+        ],
+        "look": [
+          8,
+          1.1,
+          5
+        ]
+      }
+    },
+    {
+      "set": "hutan",
+      "title": "NGGAK BISA",
+      "title_word": "nggak",
+      "events": [
+        {
+          "type": "freeze",
+          "word": "nggak"
+        }
+      ],
+      "cast": [
+        {
+          "who": "bado",
+          "at": [
+            8,
+            7.4
+          ],
+          "face": "camera",
+          "puff": {
+            "mode": "in",
+            "at": 0.2
+          },
+          "mode": "cheer"
+        },
+        {
+          "who": "udin",
+          "at": [
+            8,
+            4.9
+          ],
+          "pose": "cheer",
+          "mood": "grin",
+          "hat": false
+        },
+        {
+          "who": "rusa",
+          "at": [
+            5.9,
+            6.2
+          ],
+          "face": "camera",
+          "mode": "cheer"
+        },
+        {
+          "who": "rangkong",
+          "at": [
+            4.9,
+            5.2
+          ],
+          "face": "camera",
+          "mode": "cheer"
+        },
+        {
+          "who": "kancil",
+          "at": [
+            10.2,
+            6.8
+          ],
+          "face": "camera",
+          "mode": "cheer"
+        },
+        {
+          "who": "babi",
+          "at": [
+            10.9,
+            5.4
+          ],
+          "face": "camera",
+          "mode": "cheer"
+        }
+      ],
+      "cam": {
+        "pos": [
+          8,
+          2.2,
+          14.0
+        ],
+        "look": [
+          8,
+          1.0,
+          5.6
+        ]
+      },
+      "cam_9x16": {
+        "pos": [
+          8,
+          2.6,
+          17.0
+        ],
+        "look": [
+          8,
+          1.0,
+          5.6
+        ]
+      },
+      "offset": -1.9
+    },
+    {
+      "set": "ilustrasi",
+      "illustration": "peta_indonesia",
+      "title": "PULUHAN EKOR"
+    },
+    {
+      "set": "hutan",
+      "title": "JANGAN PERGI",
+      "events": [
+        {
+          "type": "snort",
+          "who": "bado",
+          "at": 2.4
+        },
+        {
+          "type": "bubble",
+          "who": "bado",
+          "text": "hmph.",
+          "at": 2.3,
+          "y": 1.0,
+          "dx": -60
+        }
+      ],
+      "cast": [
+        {
+          "who": "bado",
+          "at": [
+            0,
+            0
+          ],
+          "face": "camera",
+          "mood": "flat"
+        },
+        {
+          "who": "udin",
+          "at": [
+            1.05,
+            0.55
+          ],
+          "face": -0.6,
+          "pose": "hug",
+          "mood": "smile",
+          "hat": false
+        }
+      ],
+      "cam": {
+        "pos": [
+          1.9,
+          1.5,
+          5.2
+        ],
+        "look": [
+          0.5,
+          1.0,
+          0
+        ]
+      }
+    }
+  ]
+}
