@@ -2,6 +2,23 @@
 
 Cerita fiksi komedi-drama ±10 menit (gaya flat: karakter 2D outline tebal di latar 3D). Semua tokoh, tempat, waktu dan kejadian rekaan.
 
+## Versi pendek (±110 detik)
+Satu narator, orang ketiga, voice **Matilda**. Tanpa dialog tokoh. ±270 kata.
+
+| Waktu | Shot dan visual | Narasi (VO Matilda) | Caption |
+|---|---|---|---|
+| 0–8 | Garis start jalan sehat. Mas Bayu berjaket kulit di tengah ibu-ibu. Freeze frame wajah pucat, teks "5 TAHUN SEBELUMNYA" | "Jalan sehat di Desa Terserah biasanya membosankan. Tapi pagi itu, cuma satu peserta yang benar-benar lari. Namanya Bayu. Dan yang mengejarnya… lima perempuan. Semuanya berawal lima tahun sebelumnya." | YANG MENGEJAR: LIMA |
+| 8–22 | Konter servis HP. Laras masuk membawa HP retak. Montase pacaran. Close-up buku catatan Laras: "Bilang otw jam 7, datang jam 9" | "Bayu adalah tukang servis HP. Suatu hari, Laras, seorang guru TK, datang membawa HP yang retak. Mereka pacaran. Laras punya satu kebiasaan: semuanya ia catat. Bayu menganggap itu lucu. Ia belum tahu, buku itu kelak jadi barang bukti." | SEMUA DICATAT |
+| 22–42 | Agenda dengan spidol merah, lalu hijau (Sinta di lapak dawet), lalu biru (Wulan di koperasi). Close-up dua HP: kontak "Grosir Telur" dan "Bengkel Jaya". Laras melirik layar yang berdering | "Tak lama, agenda Bayu mulai berwarna. Hijau untuk Sinta, penjual es dawet. Biru untuk Wulan, kasir koperasi. Bayu punya dua HP, dan nama kontaknya disamarkan: Sinta jadi Grosir Telur, Wulan jadi Bengkel Jaya. Suatu malam, Grosir Telur menelepon jam sepuluh. Laras bertanya. Bayu menjawab, telurnya menetas." | GROSIR TELUR |
+| 42–52 | Teks "TAHUN KE-3". Bayu membawa martabak. Close-up dompet kosong dan layar "Kuota habis" | "Lalu datang musim sepi. Bayu mendadak jadi pacar teladan. Bukan karena insaf. Kuota dan tabungannya habis." | BUKAN INSAF |
+| 52–68 | Teks "TAHUN KE-4". Swipe aplikasi kencan (Rara, ungu). Bayu ikut senam ibu-ibu berjaket kulit (Nadia, oranye) | "Tahun keempat, servis kembali ramai, dan warna kembali bertambah. Ungu untuk Rara, kenalan dari aplikasi kencan. Oranye untuk Nadia, pelatih senam. Demi Nadia, Bayu ikut senam ibu-ibu setiap Minggu. Satu-satunya laki-laki. Satu-satunya yang memakai jaket kulit." | PAKAI JAKET KULIT |
+| 68–85 | Teras kos. Laras membawa rantang. Hening, ayam berhenti jalan. Bu Darmi mengetik di grup WA. Malam: lima perempuan di balai desa, Laras menggambar garis bertumpuk di papan tulis | "Sampai suatu pagi, Bayu menerima rantang dari Laras, lalu berterima kasih… dengan menyebut nama Nadia. Laras tidak marah. Laras mencatat. Dan Bu Darmi, ibu kos yang mendengar semuanya, langsung mengetik di grup WhatsApp. Malam itu, lima perempuan bertemu di balai desa. Laras menggambar semuanya di papan tulis." | SALAH NAMA |
+| 85–110 | Kembali ke garis start. Lima perempuan di belakang Bayu. Nadia meniup peluit, Bayu lari, jaket dan sandal terlepas. Juara satu. Cut: ruko "KATERING LIMA WARNA", kelima perempuan tertawa bersama | "Dan kembali ke pagi itu. Peluit ditiup. Untuk pertama kalinya, Bayu berolahraga dengan sungguh-sungguh, dan menjadi juara satu. Lima bulan kemudian, kelima perempuan itu membuka usaha bersama: Katering Lima Warna. Sementara Bayu, setiap mendengar peluit, kakinya lari sendiri." | LARI SENDIRI |
+
+Kalau mau tepat 90 detik, adegan musim sepi (42–52) bisa dibuang dan montase tahun keempat dipercepat.
+
+## Versi panjang (±10 menit)
+
 ## Tokoh
 | Tokoh | Peran | Ciri visual | Warna |
 |---|---|---|---|

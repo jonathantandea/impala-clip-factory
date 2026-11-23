@@ -132,9 +132,10 @@ def _tts(text: str, vid: str, language: str, settings: dict | None = None) -> di
         raise ValueError(f"ElevenLabs error {e.code}: {msg}") from e
 
 
-def _decode(mp3: Path):
+def _decode(mp3: Path, tempo: float = 1.0):
     import numpy as np
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(mp3), "-f", "s16le", "-ac", "1", "-ar", "48000", "-"],
+    filt = ["-filter:a", f"atempo={tempo:.4f}"] if abs(tempo - 1) > 1e-3 else []
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(mp3), *filt, "-f", "s16le", "-ac", "1", "-ar", "48000", "-"],
                          capture_output=True, check=True).stdout
     return np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768
 
@@ -173,9 +174,12 @@ def make_voice(name: str) -> dict:
             al.write_text(json.dumps(r["alignment"]))
             used += len(text)
         a = json.loads(al.read_text())
-        audio = _decode(mp3)
+        tempo = float(spec.get("tempo", 1.0))          # local speed-up (pitch kept), costs no TTS credit
+        audio = _decode(mp3, tempo)
         cursor += float(line.get("pause", 0))
-        chars, cs, ce = a["characters"], a["character_start_times_seconds"], a["character_end_times_seconds"]
+        chars = a["characters"]
+        cs = [v / tempo for v in a["character_start_times_seconds"]]
+        ce = [v / tempo for v in a["character_end_times_seconds"]]
         script = "".join(chars)
         first = None
         for m in re.finditer(r"\S+", script):

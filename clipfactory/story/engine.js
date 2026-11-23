@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import * as M from './motion.js';
 import * as K from './kit.js';
 import * as K2 from './kit2d.js';
+import { makeIllus } from './illus2d.js';
 
 export let W = 1080, H = 1920;   // set per render: 9x16 (1080x1920) or 16x9 (1920x1080)
 let LAND = false, BASE_FOV = 42, UI = 1;
@@ -124,6 +125,10 @@ export async function createStory(canvas, base, opts = {}) {
   if (usedSets.has('interior')) SETS.interior = K.interiorSet();
   if (usedSets.has('warung')) SETS.warung = K2.warungSet();
   if (usedSets.has('rumah')) SETS.rumah = K2.rumahSet();
+  Object.entries(spec.world?.sets || {}).forEach(([name, d]) => {      // named variants: {"servis": {"type": "warung", "sign": "SERVIS HP"}}
+    if (!usedSets.has(name)) return;
+    SETS[name] = d.type === 'lapangan' ? K2.lapanganSet(d) : d.type === 'rumah' ? K2.rumahSet(d) : K2.warungSet(d);
+  });
   if (usedSets.has('ilustrasi')) SETS.ilustrasi = { scene: new THREE.Scene(), flat: true };
   const setOf = (i) => scenes[i].set || spec.world?.set || 'sawah';
 
@@ -505,8 +510,12 @@ export async function createStory(canvas, base, opts = {}) {
       const carry = c.pose === 'carry';
       if (ch.puppet) {
         const ARM = { point: 'point', point_fwd: 'point', whisper: 'whisper', thumb: 'thumb' };
+        let arm = ARM[c.pose] || c.arm || (c.item ? 'hold' : 'down');
+        if (c.pose === 'run') arm = Math.floor(t * 8) % 2 ? 'run1' : 'run2';
+        if (c.pose === 'blow') arm = 'blow';
+        if (c.pose === 'cheer' || c.pose === 'up') arm = 'up';
         ch.pose(t, { x: p.x, y: c.y || 0, z: p.z, rot: Math.atan2(cam.position.x - p.x, cam.position.z - p.z), mood: c.mood || 'smile',
-          arm: ARM[c.pose] || c.arm || 'down', look: c.look || 0, sit: !!c.sit, walk: p.walking, scale: c.scale || 1, talk: c.talk });
+          arm, look: c.look || 0, sit: !!c.sit, walk: p.walking || c.pose === 'run', scale: c.scale || 1, talk: c.talk, item: c.item, medal: c.medal, sweat: c.sweat });
         return;
       }
       if (ch.animal) {
@@ -547,7 +556,7 @@ export async function createStory(canvas, base, opts = {}) {
   }
   function c0visible(c, t, sc) { return c.hat !== false && !(c.hat_off && t >= wordTime(sc, c.hat_off)); }
 
-  const ILLUS_EXTRA = {};   // illustrations registered by overlay helpers below
+  const ILLUS_EXTRA = { ...makeIllus(ctx, W, H) };   // illustrations registered by overlay helpers below
   const KEY = new Set((spec.keywords || []).map((k) => k.toLowerCase()));
   function caption(t) {
     if (spec.captions === false) return;
@@ -968,6 +977,7 @@ export async function createStory(canvas, base, opts = {}) {
       while (i1 + 1 < scenes.length && setOf(i1 + 1) === 'ilustrasi' && scenes[i1 + 1].illustration === scenes[sc].illustration) i1++;
       const a = spanOf(i0)[0], b = spanOf(i1)[1];
       ({ ...ILLUS, ...ILLUS_EXTRA }[scenes[sc].illustration] || ILLUS.usus_kubus)(clamp((t - a) / Math.max(0.5, b - a)), t, scenes[sc]);
+      if (spec.style === 'flat') K2.grade(ctx, W, H, Math.round(t * 30), { ...(spec.grade || {}), warm: (spec.grade?.warm ?? 0.35) * 0.5, vignette: 0.35 });
     } else if (spec.style === 'flat') {
       renderFlat(setNow.scene, sc, t);
     } else {
