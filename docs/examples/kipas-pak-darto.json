@@ -1,0 +1,515 @@
+{
+  "title": "Kipas Angin Pak Darto",
+  "style": "flat",
+  "voice": "brian",
+  "voice_settings": {
+    "speed": 1.08
+  },
+  "language": "id",
+  "music": "lofi",
+  "keywords": [
+    "kipas",
+    "angin",
+    "penunggunya",
+    "ternyata",
+    "listrik",
+    "hemat"
+  ],
+  "script": [
+    {
+      "text": "Pak Darto punya kipas angin yang cuma nyala kalau ada tamu.",
+      "gap": 0.5
+    },
+    {
+      "text": "Tamu datang, kipasnya langsung muter kencang.",
+      "gap": 0.4
+    },
+    {
+      "text": "Tamu pulang... kipasnya mati sendiri.",
+      "gap": 0.6
+    },
+    {
+      "text": "Satu kampung heboh. Katanya kipasnya pintar. Ada yang bilang... ada penunggunya.",
+      "gap": 0.5
+    },
+    {
+      "text": "Pak RT sampai datang sendiri buat membuktikan.",
+      "gap": 0.5
+    },
+    {
+      "text": "Ternyata...",
+      "speed": 0.85,
+      "settings": {
+        "stability": 0.6
+      },
+      "gap": 3.0
+    },
+    {
+      "text": "Pak Darto nginjak saklar di bawah meja. Biar listrik hemat, tapi tamu tetap adem."
+    }
+  ],
+  "characters": {
+    "darto": {
+      "type": "puppet",
+      "hair": "#2A1E18",
+      "peci": true,
+      "mustache": true,
+      "tunic": "#C9A24A",
+      "skirt": "#5A4A6A",
+      "collar": true
+    },
+    "tamu": {
+      "type": "puppet",
+      "hair": "#2A1E18",
+      "tunic": "#4F8FBF",
+      "skirt": "#3A3A3A",
+      "collar": true
+    },
+    "pakrt": {
+      "type": "puppet",
+      "hair": "#2A1E18",
+      "peci": true,
+      "mustache": true,
+      "tunic": "#8A5A3C",
+      "skirt": "#3A3A3A",
+      "collar": true
+    },
+    "ibu1": {
+      "type": "puppet",
+      "hijab": "#3FA7B8",
+      "tunic": "#E2733A",
+      "skirt": "#7A4A2E"
+    },
+    "ibu2": {
+      "type": "puppet",
+      "hijab": "#E98A5E",
+      "tunic": "#4FA36A",
+      "skirt": "#E6DDC6"
+    },
+    "ibu3": {
+      "type": "puppet",
+      "hijab": "#E8C33A",
+      "tunic": "#7A5AA8",
+      "skirt": "#E6DDC6"
+    }
+  },
+  "world": {
+    "props": [
+      {
+        "type": "fan",
+        "id": "kipas",
+        "x": -0.7,
+        "z": -2.35,
+        "rot": 0.3,
+        "set": "rumah"
+      },
+      {
+        "type": "door",
+        "id": "pintu",
+        "x": 2.08,
+        "z": -3.0,
+        "set": "rumah"
+      },
+      {
+        "type": "foot_switch",
+        "id": "saklar",
+        "x": 0.45,
+        "z": -0.95,
+        "rot": 0.2,
+        "set": "rumah",
+        "k": 1
+      },
+      {
+        "type": "bill",
+        "id": "tagihan",
+        "x": 0.15,
+        "y": 0.8,
+        "z": -0.7,
+        "rot": 0.25,
+        "amount": "Rp 12.500",
+        "set": "rumah"
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "set": "rumah",
+      "line": 0,
+      "title": "KIPAS ANGIN",
+      "sharp": [
+        "kipas"
+      ],
+      "blur": 7,
+      "cam": {
+        "pos": [
+          -0.95,
+          1.28,
+          -1.25
+        ],
+        "look": [
+          -0.7,
+          1.17,
+          -2.35
+        ],
+        "to": {
+          "pos": [
+            -0.9,
+            1.26,
+            -1.45
+          ],
+          "look": [
+            -0.7,
+            1.17,
+            -2.35
+          ]
+        }
+      }
+    },
+    {
+      "set": "rumah",
+      "line": 1,
+      "title": "MUTER KENCANG",
+      "blur": 2.5,
+      "events": [
+        {
+          "type": "grow",
+          "target": "kipas",
+          "start_word": "muter",
+          "dur": 0.5,
+          "from": 0,
+          "to": 1
+        }
+      ],
+      "cast": [
+        {
+          "who": "tamu",
+          "at": [
+            -1.85,
+            -1.0
+          ],
+          "sit": true,
+          "mood": "smile",
+          "look": 0.4
+        },
+        {
+          "who": "darto",
+          "at": [
+            0.55,
+            -1.5
+          ],
+          "sit": true,
+          "mood": "smile",
+          "look": -0.4
+        }
+      ],
+      "cam": {
+        "pos": [
+          3.6,
+          1.65,
+          2.2
+        ],
+        "look": [
+          -0.4,
+          1.0,
+          -1.22
+        ]
+      }
+    },
+    {
+      "set": "rumah",
+      "line": 2,
+      "title": "MATI SENDIRI",
+      "sharp": [
+        "kipas"
+      ],
+      "blur": 6,
+      "events": [
+        {
+          "type": "grow",
+          "target": "pintu",
+          "from": 1,
+          "to": 0,
+          "delay": 1.4,
+          "dur": 0.7
+        },
+        {
+          "type": "grow",
+          "target": "kipas",
+          "start_word": "kipasnya",
+          "dur": 1.4,
+          "from": 1,
+          "to": 0
+        }
+      ],
+      "cast": [
+        {
+          "who": "tamu",
+          "at": [
+            1.7,
+            -2.0
+          ],
+          "walk_to": [
+            2.6,
+            -3.7
+          ],
+          "mood": "smile"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -1.75,
+          1.3,
+          -1.85
+        ],
+        "look": [
+          1.4,
+          1.1,
+          -2.85
+        ]
+      }
+    },
+    {
+      "set": "warung",
+      "line": 3,
+      "title": "ADA PENUNGGUNYA",
+      "title_word": "penunggunya",
+      "blur": 3.5,
+      "cast": [
+        {
+          "who": "ibu1",
+          "at": [
+            -0.75,
+            1.8
+          ],
+          "pose": "whisper",
+          "mood": "whisper",
+          "look": 0.5,
+          "pose_at": [
+            {
+              "word": "penunggunya",
+              "pose": "whisper",
+              "mood": "shock"
+            }
+          ]
+        },
+        {
+          "who": "ibu2",
+          "at": [
+            0.1,
+            1.85
+          ],
+          "mood": "worried",
+          "look": -0.5,
+          "pose_at": [
+            {
+              "word": "penunggunya",
+              "mood": "shock"
+            }
+          ]
+        },
+        {
+          "who": "ibu3",
+          "at": [
+            0.95,
+            1.8
+          ],
+          "pose": "point",
+          "mood": "worried",
+          "look": -0.3,
+          "pose_at": [
+            {
+              "word": "penunggunya",
+              "pose": "point",
+              "mood": "shock"
+            }
+          ]
+        }
+      ],
+      "cam": {
+        "pos": [
+          0.1,
+          1.5,
+          5.4
+        ],
+        "look": [
+          0.1,
+          1.25,
+          1.5
+        ]
+      }
+    },
+    {
+      "set": "rumah",
+      "line": 4,
+      "title": "MEMBUKTIKAN",
+      "blur": 4,
+      "events": [
+        {
+          "type": "grow",
+          "target": "kipas",
+          "dur": 0.5,
+          "from": 0,
+          "to": 1,
+          "delay": 0.4
+        }
+      ],
+      "cast": [
+        {
+          "who": "pakrt",
+          "at": [
+            -1.85,
+            -1.0
+          ],
+          "sit": true,
+          "mood": "suspicious",
+          "look": 0.6
+        },
+        {
+          "who": "darto",
+          "at": [
+            0.55,
+            -1.5
+          ],
+          "sit": true,
+          "mood": "smile",
+          "look": -0.5
+        }
+      ],
+      "cam": {
+        "pos": [
+          -2.55,
+          1.4,
+          0.1
+        ],
+        "look": [
+          -1.2,
+          1.1,
+          -1.8
+        ]
+      }
+    },
+    {
+      "set": "rumah",
+      "line": 5,
+      "title": "TERNYATA…",
+      "sharp": [
+        "saklar"
+      ],
+      "blur": 4,
+      "events": [
+        {
+          "type": "grow",
+          "target": "kipas",
+          "from": 1,
+          "to": 1
+        }
+      ],
+      "cast": [
+        {
+          "who": "pakrt",
+          "at": [
+            -1.85,
+            -1.0
+          ],
+          "sit": true,
+          "mood": "suspicious",
+          "look": 0.6
+        },
+        {
+          "who": "darto",
+          "at": [
+            0.55,
+            -1.5
+          ],
+          "sit": true,
+          "mood": "smug",
+          "look": -0.3
+        }
+      ],
+      "cam": {
+        "pos": [
+          0.55,
+          1.05,
+          1.1
+        ],
+        "look": [
+          0.5,
+          0.8,
+          -0.9
+        ],
+        "to": {
+          "pos": [
+            0.5,
+            0.2,
+            0.45
+          ],
+          "look": [
+            0.45,
+            0.07,
+            -0.95
+          ]
+        }
+      }
+    },
+    {
+      "set": "rumah",
+      "line": 6,
+      "blur": 5,
+      "events": [
+        {
+          "type": "grow",
+          "target": "kipas",
+          "from": 1,
+          "to": 1
+        }
+      ],
+      "cast": [
+        {
+          "who": "darto",
+          "at": [
+            0.55,
+            -1.5
+          ],
+          "sit": true,
+          "mood": "smug",
+          "pose": "thumb"
+        }
+      ],
+      "cam": {
+        "pos": [
+          0.62,
+          1.32,
+          0.0
+        ],
+        "look": [
+          0.55,
+          1.2,
+          -1.5
+        ]
+      }
+    },
+    {
+      "set": "rumah",
+      "line": 6,
+      "at_word": "biar",
+      "title": "LISTRIK HEMAT",
+      "title_word": "listrik",
+      "sharp": [
+        "tagihan"
+      ],
+      "blur": 6,
+      "cam": {
+        "pos": [
+          0.2,
+          1.3,
+          -0.3
+        ],
+        "look": [
+          0.15,
+          0.8,
+          -0.7
+        ]
+      }
+    }
+  ]
+}

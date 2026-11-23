@@ -109,9 +109,12 @@ def list_projects() -> list[dict]:
 
 
 # ----------------------------------------------------------------------------- voice
-def _tts(text: str, vid: str, language: str) -> dict:
+DEFAULT_SETTINGS = {"stability": 0.45, "similarity_boost": 0.8, "style": 0.35}
+
+
+def _tts(text: str, vid: str, language: str, settings: dict | None = None) -> dict:
     body = json.dumps({"text": text, "model_id": "eleven_multilingual_v2", "language_code": language,
-                       "voice_settings": {"stability": 0.45, "similarity_boost": 0.8, "style": 0.35}}).encode()
+                       "voice_settings": {**DEFAULT_SETTINGS, **(settings or {})}}).encode()
     req = urllib.request.Request(f"https://api.elevenlabs.io/v1/text-to-speech/{vid}/with-timestamps?output_format=mp3_44100_128",
                                  data=body, headers={"Content-Type": "application/json", "xi-api-key": _key()})
     try:
@@ -151,12 +154,17 @@ def make_voice(name: str) -> dict:
         speaker = line.get("speaker", "narator")
         voice = voices.get(speaker, voices["narator"])
         vid = VOICES.get(str(voice).lower(), voice)
-        key = hashlib.sha1(f"{vid}|{lang}|{text}".encode()).hexdigest()[:16]
+        # voice settings: spec.voice_settings for all lines, line.speed / line.settings per line (speed 0.7-1.2)
+        settings = {**(spec.get("voice_settings") or {}), **(line.get("settings") or {})}
+        if line.get("speed") is not None:
+            settings["speed"] = float(line["speed"])
+        tag = json.dumps(settings, sort_keys=True) if settings else ""
+        key = hashlib.sha1(f"{vid}|{lang}|{text}{'|' + tag if tag else ''}".encode()).hexdigest()[:16]
         mp3, al = cache / f"{key}.mp3", cache / f"{key}.json"
         total += len(text)
         if not (mp3.exists() and al.exists()):
             log(f"ElevenLabs [{speaker}]: {text[:50]}")
-            r = _tts(text, vid, lang)
+            r = _tts(text, vid, lang, settings)
             mp3.write_bytes(base64.b64decode(r["audio_base64"]))
             al.write_text(json.dumps(r["alignment"]))
             used += len(text)

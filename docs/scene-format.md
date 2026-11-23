@@ -72,8 +72,11 @@ Semua: `id`, `x`, `z`, `hidden: true` = tersembunyi sampai event `appear`.
 - Event baru: `grow {target, from, to, word, delay, dur}` (nilai bertahan setelah adegan), `day {n}` (lencana HARI KE-n), `bubble {who, text, at|word, y, dx}` (balon dialog), `snort {who, at}` (asap kecil dari hidung). `appear` / `disappear` juga bisa diberi `word`.
 - Ilustrasi 2D: `jam_pasir` (`day`), `peta_indonesia` (`label`, titik berkedip di Ujung Kulon), `papan_skor` (`score`), `kalender` (`from`, `to`, `month`), `post_sosmed` (`text`, `user`, `likes`), `usus_kubus`.
 
+Gaya flat (karakter 2D outline tebal di set 3D bertekstur, latar blur, warna hangat): `"style": "flat"`, karakter `{"type": "puppet", "hijab" | "hair", "peci", "mustache", "tunic", "skirt", "skin", "collar"}`; mood: smile, happy, smug, suspicious, worried, shock, whisper, angry, neutral; cast `look` (-1..1), `sit`, pose point / whisper / thumb. Set: warung, rumah. Properti: fan (`grow` = kecepatan, `rps`), door (`grow` = terbuka), foot_switch, bill (`amount`). Adegan: `blur` (px), `sharp: [id properti]` = tetap tajam, `soft: [id karakter]` = ikut blur. Event `grow` bisa diberi `start_word`.
+Suara: `voice_settings` (mis. `{"speed": 1.08}`), per baris `speed` / `settings`.
+
 Opsi atas: `voices` (`{ "narator": "brian", "budi": "george" }`) + baris naskah `{ "text", "speaker", "pause", "gap" }` untuk banyak suara; `caption_color` (hex).
-Format: setiap project bisa dirender 9:16 dan 16:9 (tombol di halaman render). Contoh multi-suara + kota: `docs/examples/kota-part1-berangkat-kerja.json`. Hutan + hewan: `docs/examples/badak-hilang.json`. Interior 90-an: `docs/examples/genz-tanpa-hp.json`.
+Format: setiap project bisa dirender 9:16 dan 16:9 (tombol di halaman render). Contoh multi-suara + kota: `docs/examples/kota-part1-berangkat-kerja.json`. Hutan + hewan: `docs/examples/badak-hilang.json`. Interior 90-an: `docs/examples/genz-tanpa-hp.json`. Gaya flat: `docs/examples/kipas-pak-darto.json`.
 
 Teks layar (`title`) mendukung `{arrow}`, `{dot}`, `{trophy}` (digambar, karena font tidak punya → 🔵 🏆).
 

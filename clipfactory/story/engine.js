@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import * as M from './motion.js';
 import * as K from './kit.js';
+import * as K2 from './kit2d.js';
 
 export let W = 1080, H = 1920;   // set per render: 9x16 (1080x1920) or 16x9 (1920x1080)
 let LAND = false, BASE_FOV = 42, UI = 1;
@@ -64,7 +65,8 @@ export async function createStory(canvas, base, opts = {}) {
   const ctx = canvas.getContext('2d');
 
   const glc = document.createElement('canvas'); glc.width = W; glc.height = H;
-  const R = new THREE.WebGLRenderer({ canvas: glc, antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  const R = new THREE.WebGLRenderer({ canvas: glc, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+  R.setClearColor('#000', 1);
   R.setPixelRatio(1); R.setSize(W, H, false);
   R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.NoToneMapping;
   R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFShadowMap;
@@ -120,6 +122,8 @@ export async function createStory(canvas, base, opts = {}) {
     SETS.hutan = K.forestSet([{ x: 0, z: 0, r: 7 }, ...keep, ...(spec.world?.clear || [])]);
   }
   if (usedSets.has('interior')) SETS.interior = K.interiorSet();
+  if (usedSets.has('warung')) SETS.warung = K2.warungSet();
+  if (usedSets.has('rumah')) SETS.rumah = K2.rumahSet();
   if (usedSets.has('ilustrasi')) SETS.ilustrasi = { scene: new THREE.Scene(), flat: true };
   const setOf = (i) => scenes[i].set || spec.world?.set || 'sawah';
 
@@ -133,6 +137,11 @@ export async function createStory(canvas, base, opts = {}) {
     else if (p.type === 'angkot') { o = K.angkot(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
     else if (p.type === 'motor') { o = K.motorbike(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
     else if (p.type === 'flat_rock') o = K.flatRock(scene, p.x, p.z);
+    else if (['fan', 'door', 'foot_switch', 'bill'].includes(p.type)) {
+      o = { fan: () => K2.standFan(scene), door: () => K2.doorPanel(scene), foot_switch: () => K2.footSwitch(scene), bill: () => K2.billPaper(scene, p) }[p.type]();
+      o.obj.position.set(p.x, p.y || 0, p.z); o.obj.rotation.y = p.rot || 0; if (p.scale) o.obj.scale.setScalar(p.scale);
+      o.grows = !!o.update;
+    }
     else if (['bed', 'radio', 'calendar', 'landline', 'tv', 'desk', 'fax', 'wall_clock', 'cafe_table', 'post_box', 'cafe_front'].includes(p.type)) {
       o = { bed: () => K.bed(scene), radio: () => K.radio(scene), calendar: () => K.wallCalendar(scene, p), landline: () => K.landline(scene),
         tv: () => K.crtTV(scene, p), desk: () => K.officeDesk(scene), fax: () => K.faxMachine(scene), wall_clock: () => K.wallClock(scene, p),
@@ -181,6 +190,7 @@ export async function createStory(canvas, base, opts = {}) {
       : c.type === 'wombat' ? K.wombat(scene, { color: c.color || '#8C6A50' })
       : ['badak', 'rusa', 'babi', 'kancil'].includes(c.type) ? K.beast(scene, { kind: c.type, color: c.color, bucket: !!c.bucket, map: !!c.map })
       : c.type === 'rangkong' ? K.hornbill(scene, { bucket: !!c.bucket })
+      : c.type === 'puppet' ? K2.puppet(scene, c)
       : K.character(scene, { shirt, sarong, hat: c.hat || null, mustache: !!c.mustache, blush: !!c.blush,
         hair: c.hair, hairLong: c.hairLong, whistle: !!c.whistle, baby: !!c.baby, capColor: c.capColor });
     ch.type = c.type || 'person';
@@ -199,7 +209,8 @@ export async function createStory(canvas, base, opts = {}) {
       if (startOf(i) > t) break;
       (scenes[i].events || []).filter((e) => e.type === 'grow' && e.target === id).forEach((e) => {
         const [a, b] = spanOf(i);
-        const t0 = a + (e.delay || 0), t1 = e.word ? wordTime(i, e.word) : a + (e.dur ?? (b - a));
+        const t0 = (e.start_word ? wordTime(i, e.start_word) : a) + (e.delay || 0);
+        const t1 = e.word ? wordTime(i, e.word) : e.dur != null ? t0 + e.dur : b;
         v = lerp(e.from ?? v, e.to ?? 1, (e.ease === 'linear' ? (x) => x : E.inOutSine)(prog(t, t0, Math.max(t0 + 0.05, t1))));
       });
     }
@@ -370,7 +381,10 @@ export async function createStory(canvas, base, opts = {}) {
       if (dis && (!ap || dis.at >= ap.at)) k = 0;
       if ((scenes[sc].hide || []).includes(o.id)) k = 0;
       o.obj.visible = k > 0.001; o.obj.scale.setScalar(Math.max(0.001, k) * (o.spec.scale || 1));
-      if (o.grows) o.update(t, growK(o.id, t));
+      if (o.grows && o.spec.type === 'fan') {         // blade angle = integral of the speed curve
+        let ang = 0; for (let tt = 0; tt < t; tt += 1 / 30) ang += growK(o.id, tt) * (o.spec.rps ?? 26) / 30;
+        o.update(t, growK(o.id, t), ang);
+      } else if (o.grows) o.update(t, growK(o.id, t));
       if (o.spec.type === 'scarecrow') {
         const r = eventsUpTo(t, 'raise').filter((e) => e.target === o.id).pop();
         const tilt = o.spec.fallen ? (r ? lerp(1.15, 0, M.spring(t - r.at - 0.8, M.SPRING.bouncy)) : 1.15) : 0;
@@ -489,6 +503,12 @@ export async function createStory(canvas, base, opts = {}) {
       }
       if (ch.hold) ch.hold(c.item || null);
       const carry = c.pose === 'carry';
+      if (ch.puppet) {
+        const ARM = { point: 'point', point_fwd: 'point', whisper: 'whisper', thumb: 'thumb' };
+        ch.pose(t, { x: p.x, y: c.y || 0, z: p.z, rot: Math.atan2(cam.position.x - p.x, cam.position.z - p.z), mood: c.mood || 'smile',
+          arm: ARM[c.pose] || c.arm || 'down', look: c.look || 0, sit: !!c.sit, walk: p.walking, scale: c.scale || 1, talk: c.talk });
+        return;
+      }
       if (ch.animal) {
         ch.pose(t, { x: p.x, y, z: p.z, rot, mode: p.walking ? 'walk' : (c.mode || 'idle'), mood: c.mood || 'smile' });
         return;
@@ -914,6 +934,30 @@ export async function createStory(canvas, base, opts = {}) {
     },
   };
 
+  // flat look: the set (layer 0) is rendered and lens-blurred; puppets and "sharp" props (layer 1) are rendered crisp
+  // on top, hidden by nearer set geometry through a depth-only pass; then a warm grade, vignette and grain
+  let R2 = null, glc2 = null;
+  const depthOnly = new THREE.MeshDepthMaterial(); depthOnly.colorWrite = false;
+  function renderFlat(set, sc, t) {
+    if (!R2) {
+      glc2 = document.createElement('canvas'); glc2.width = W; glc2.height = H;
+      R2 = new THREE.WebGLRenderer({ canvas: glc2, antialias: true, alpha: true, preserveDrawingBuffer: true });
+      R2.setPixelRatio(1); R2.setSize(W, H, false); R2.outputColorSpace = THREE.SRGBColorSpace; R2.toneMapping = THREE.NoToneMapping;
+      R2.shadowMap.enabled = true; R2.shadowMap.type = THREE.PCFShadowMap;
+    }
+    const s = scenes[sc];
+    const soft = new Set(s.soft || []), sharp = new Set(s.sharp || []);
+    Object.entries(chars).forEach(([id, ch]) => { const l = soft.has(id) ? 0 : 1; ch.obj.traverse((o) => o.layers.set(l)); });
+    Object.values(props).forEach((o) => { const l = sharp.has(o.id) ? 1 : 0; o.obj.traverse((x) => x.layers.set(l)); });
+    cam.layers.set(0); R.setClearColor('#000', 1); R.render(set, cam);
+    K2.blurInto(ctx, glc, W, H, s.blur ?? spec.blur ?? 5);
+    R2.autoClear = false; R2.setClearColor('#000', 0); R2.clear(true, true, true);
+    const bg = set.background; set.background = null; set.overrideMaterial = depthOnly; R2.render(set, cam); set.overrideMaterial = null;
+    cam.layers.set(1); R2.render(set, cam); cam.layers.set(0); set.background = bg;
+    ctx.drawImage(glc2, 0, 0);
+    K2.grade(ctx, W, H, Math.round(t * 30), spec.grade || {});
+  }
+
   function seek(t) {
     const sc = updateWorld(t);
     const setNow = SETS[setOf(sc)];
@@ -924,7 +968,10 @@ export async function createStory(canvas, base, opts = {}) {
       while (i1 + 1 < scenes.length && setOf(i1 + 1) === 'ilustrasi' && scenes[i1 + 1].illustration === scenes[sc].illustration) i1++;
       const a = spanOf(i0)[0], b = spanOf(i1)[1];
       ({ ...ILLUS, ...ILLUS_EXTRA }[scenes[sc].illustration] || ILLUS.usus_kubus)(clamp((t - a) / Math.max(0.5, b - a)), t, scenes[sc]);
+    } else if (spec.style === 'flat') {
+      renderFlat(setNow.scene, sc, t);
     } else {
+      R.setClearColor('#000', 1);
       R.render(setNow.scene, cam);
       ctx.drawImage(glc, 0, 0);
     }
