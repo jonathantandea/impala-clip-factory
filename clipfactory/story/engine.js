@@ -6,6 +6,7 @@ import * as M from './motion.js';
 import * as K from './kit.js';
 import * as K2 from './kit2d.js';
 import { makeIllus } from './illus2d.js';
+import { makeDocu } from './docu.js';
 
 export let W = 1080, H = 1920;   // set per render: 9x16 (1080x1920) or 16x9 (1920x1080)
 let LAND = false, BASE_FOV = 42, UI = 1;
@@ -79,6 +80,7 @@ export async function createStory(canvas, base, opts = {}) {
   const startOf = (i) => {
     if (i === 0) return 0;
     const sc0 = scenes[i];
+    if (sc0.start_at != null) return sc0.start_at === 'end' ? Math.max(...vo.words.map((w) => w.e)) + 1.2 : sc0.start_at;
     if (sc0.at_word) {        // start on a spoken word of its line
       const w = vo.words.find((x) => x.phrase === sc0.line && x.w.toLowerCase().replace(/[^a-z0-9-]/g, '').startsWith(sc0.at_word.toLowerCase()));
       if (w) return Math.max(0, w.s - 0.1);
@@ -556,10 +558,12 @@ export async function createStory(canvas, base, opts = {}) {
   }
   function c0visible(c, t, sc) { return c.hat !== false && !(c.hat_off && t >= wordTime(sc, c.hat_off)); }
 
-  const ILLUS_EXTRA = { ...makeIllus(ctx, W, H) };   // illustrations registered by overlay helpers below
+  const ILLUS_EXTRA = { ...makeIllus(ctx, W, H) };
+  if (spec.style === 'docu') ILLUS_EXTRA.docu = await makeDocu(ctx, W, H, base.replace(/motion\/projects\/.*$/, 'story/'));   // illustrations registered by overlay helpers below
   const KEY = new Set((spec.keywords || []).map((k) => k.toLowerCase()));
   function caption(t) {
     if (spec.captions === false) return;
+    if (spec.style === 'docu') return docuCaption(t);
     let cur = null;
     for (const w of vo.words) { if (w.s - 0.04 <= t) cur = w; else break; }
     if (!cur || t > cur.e + 0.6) return;
@@ -575,6 +579,21 @@ export async function createStory(canvas, base, opts = {}) {
     ctx.shadowColor = 'transparent';
     ctx.fillStyle = spec.caption_color || (KEY.has(clean) ? '#FFD23F' : '#FFFFFF');
     ctx.fillText(cur.w, 0, 0);
+    ctx.restore();
+  }
+
+  // documentary subtitles: up to ~7 words of the current sentence, current word in gold when it is a keyword
+  const CHUNKS = (() => { const out = []; let cur = [];
+    vo.words.forEach((w, i) => { cur.push(w); const nx = vo.words[i + 1]; if (cur.length >= 7 || !nx || nx.phrase !== w.phrase || /[.?!,:]$/.test(w.w) && cur.length >= 4) { out.push(cur); cur = []; } });
+    return out; })();
+  function docuCaption(t) {
+    const ch = CHUNKS.find((c) => t >= c[0].s - 0.05 && t <= c[c.length - 1].e + 0.35); if (!ch) return;
+    const u = H / 1080; ctx.save(); ctx.font = `600 ${Math.round(38 * u)}px Poppins`; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    const parts = ch.map((w) => w.w), widths = parts.map((p) => ctx.measureText(p + ' ').width), total = widths.reduce((a, b) => a + b, 0);
+    let x = W / 2 - total / 2; const y = H - 62 * u;
+    ctx.fillStyle = 'rgba(12,17,23,0.55)'; ctx.beginPath(); ctx.roundRect(x - 22 * u, y - 30 * u, total + 44 * u - ctx.measureText(' ').width, 60 * u, 12 * u); ctx.fill();
+    ch.forEach((w, i) => { const key = KEY.has(w.w.toLowerCase().replace(/[^a-z0-9-]/g, '')); const now = t >= w.s - 0.04;
+      ctx.fillStyle = key && now ? '#C9A45C' : now ? '#ECE2CC' : 'rgba(236,226,204,0.55)'; ctx.fillText(w.w, x, y); x += widths[i]; });
     ctx.restore();
   }
 
@@ -976,7 +995,11 @@ export async function createStory(canvas, base, opts = {}) {
       while (i0 > 0 && setOf(i0 - 1) === 'ilustrasi' && scenes[i0 - 1].illustration === scenes[sc].illustration) i0--;
       while (i1 + 1 < scenes.length && setOf(i1 + 1) === 'ilustrasi' && scenes[i1 + 1].illustration === scenes[sc].illustration) i1++;
       const a = spanOf(i0)[0], b = spanOf(i1)[1];
-      ({ ...ILLUS, ...ILLUS_EXTRA }[scenes[sc].illustration] || ILLUS.usus_kubus)(clamp((t - a) / Math.max(0.5, b - a)), t, scenes[sc]);
+      const ilKey = String(scenes[sc].illustration || '').split(':')[0];
+      const span0 = spanOf(sc);
+      const api = { span: span0, wordAt: (word) => { const key = word.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const w = vo.words.find((x) => x.s >= span0[0] - 0.05 && x.s < span0[1] && x.w.toLowerCase().replace(/[^a-z0-9-]/g, '').startsWith(key)); return w ? w.s : undefined; } };
+      ({ ...ILLUS, ...ILLUS_EXTRA }[ilKey] || ILLUS.usus_kubus)(clamp((t - a) / Math.max(0.5, b - a)), t, scenes[sc], api);
       if (spec.style === 'flat') K2.grade(ctx, W, H, Math.round(t * 30), { ...(spec.grade || {}), warm: (spec.grade?.warm ?? 0.35) * 0.5, vignette: 0.35 });
     } else if (spec.style === 'flat') {
       renderFlat(setNow.scene, sc, t);

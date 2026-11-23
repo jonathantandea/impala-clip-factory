@@ -67,8 +67,8 @@ def validate(spec: dict) -> dict:
         raise ValueError('"script" harus daftar kalimat narasi (satu kalimat per adegan)')
     if not isinstance(spec.get("scenes"), list) or not spec["scenes"]:
         raise ValueError('"scenes" kosong')
-    if len(lines) > 60:
-        raise ValueError("script terlalu panjang (maks 60 kalimat)")
+    if len(lines) > 400:          # long-form (10+ minutes) needs ~150 sentences
+        raise ValueError("script terlalu panjang (maks 400 kalimat)")
     chars = spec.get("characters") or {}
     for i, s in enumerate(spec["scenes"]):
         for c in s.get("cast", []):
