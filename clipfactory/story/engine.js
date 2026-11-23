@@ -986,6 +986,7 @@ export async function createStory(canvas, base, opts = {}) {
     K2.grade(ctx, W, H, Math.round(t * 30), spec.grade || {});
   }
 
+  const TRANS = {};
   function seek(t) {
     const sc = updateWorld(t);
     const setNow = SETS[setOf(sc)];
@@ -996,10 +997,21 @@ export async function createStory(canvas, base, opts = {}) {
       while (i1 + 1 < scenes.length && setOf(i1 + 1) === 'ilustrasi' && scenes[i1 + 1].illustration === scenes[sc].illustration) i1++;
       const a = spanOf(i0)[0], b = spanOf(i1)[1];
       const ilKey = String(scenes[sc].illustration || '').split(':')[0];
-      const span0 = spanOf(sc);
-      const api = { span: span0, wordAt: (word) => { const key = word.toLowerCase().replace(/[^a-z0-9-]/g, '');
-        const w = vo.words.find((x) => x.s >= span0[0] - 0.05 && x.s < span0[1] && x.w.toLowerCase().replace(/[^a-z0-9-]/g, '').startsWith(key)); return w ? w.s : undefined; } };
-      ({ ...ILLUS, ...ILLUS_EXTRA }[ilKey] || ILLUS.usus_kubus)(clamp((t - a) / Math.max(0.5, b - a)), t, scenes[sc], api);
+      const apiFor = (i) => { const sp = spanOf(i); return { span: sp, wordAt: (word) => { const key = word.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        const w = vo.words.find((x) => x.s >= sp[0] - 0.05 && x.s < sp[1] && x.w.toLowerCase().replace(/[^a-z0-9-]/g, '').startsWith(key)); return w ? w.s : undefined; } }; };
+      const fn = { ...ILLUS, ...ILLUS_EXTRA }[ilKey] || ILLUS.usus_kubus;
+      const TR = 0.5, since = t - startOf(sc);
+      const prevDocu = ilKey === 'docu' && sc > 0 && String(scenes[sc - 1].illustration || '').startsWith('docu') && since < TR;
+      if (prevDocu) {                     // crossfade + slight push from the previous scene
+        TRANS.a = TRANS.a || Object.assign(document.createElement('canvas'), { width: W, height: H });
+        TRANS.b = TRANS.b || Object.assign(document.createElement('canvas'), { width: W, height: H });
+        const ca = TRANS.a.getContext('2d'), cb = TRANS.b.getContext('2d');
+        fn(1, t, scenes[sc - 1], apiFor(sc - 1), ca);
+        fn(clamp((t - a) / Math.max(0.5, b - a)), t, scenes[sc], apiFor(sc), cb);
+        const k = E.inOutCubic(clamp(since / TR));
+        ctx.drawImage(TRANS.a, 0, 0);
+        ctx.save(); ctx.globalAlpha = k; const z = 1.04 - 0.04 * k; ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.drawImage(TRANS.b, -W / 2, -H / 2); ctx.restore();
+      } else fn(clamp((t - a) / Math.max(0.5, b - a)), t, scenes[sc], apiFor(sc));
       if (spec.style === 'flat') K2.grade(ctx, W, H, Math.round(t * 30), { ...(spec.grade || {}), warm: (spec.grade?.warm ?? 0.35) * 0.5, vignette: 0.35 });
     } else if (spec.style === 'flat') {
       renderFlat(setNow.scene, sc, t);

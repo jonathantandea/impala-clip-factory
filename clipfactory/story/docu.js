@@ -42,7 +42,8 @@ export const PLACES = { run: [129.683, -4.554], ai: [129.778, -4.526], neira: [1
   maluku: [129.0, -3.3], manhattan: [-73.97, 40.78], newyork: [-74.0, 40.71], london: [-0.12, 51.5], amsterdam: [4.9, 52.37], malaka: [102.25, 2.2], venesia: [12.33, 45.44], breda: [4.78, 51.59], grenada: [-61.68, 12.12], ambon: [128.18, -3.69] };
 
 // ---------------------------------------------------------------- renderer
-export async function makeDocu(ctx, W, H, base = '/story/') {
+export async function makeDocu(mainCtx, W, H, base = '/story/') {
+  let ctx = mainCtx;
   const fonts = [[SERIF, 'lora-600.woff2', '600', 'normal'], [SERIF, 'lora-700.woff2', '700', 'normal'], [SERIF, 'lora-600i.woff2', '600', 'italic'],
     [SANS, 'poppins-500.woff2', '500', 'normal'], [SANS, 'poppins-600.woff2', '600', 'normal'], [SANS, 'poppins-800.woff2', '800', 'normal']];
   await Promise.all(fonts.map(async ([fam, f, w, st]) => { const ff = new FontFace(fam, `url(${base}fonts/${f})`, { weight: w, style: st }); await ff.load(); document.fonts.add(ff); }));
@@ -84,9 +85,11 @@ export async function makeDocu(ctx, W, H, base = '/story/') {
     let a = keys[0], b = keys[0];
     for (let i = 0; i < keys.length; i++) { if (keys[i].t <= lt) { a = keys[i]; b = keys[i + 1] || keys[i]; } }
     const k = b === a ? 1 : ease(clamp((lt - b.t + (b.dur ?? 1.6)) / (b.dur ?? 1.6)));
-    if (b !== a && lt < b.t - (b.dur ?? 1.6)) return { lon: a.lon, lat: a.lat, zoom: a.zoom };
+    if (b !== a && lt < b.t - (b.dur ?? 1.6)) b = a;
     const lz = lerp(Math.log(a.zoom), Math.log(b.zoom), k);
-    return { lon: lerp(a.lon, b.lon, k), lat: lerp(a.lat, b.lat, k), zoom: Math.exp(lz) };
+    // constant slow drift so a map never sits still: push in a few percent and pan a little
+    const kk = clamp(lt / Math.max(1, api.span[1] - api.span[0])), z = Math.exp(lz) * (1 + (s.drift ?? 0.07) * E.inOutSine(kk));
+    return { lon: lerp(a.lon, b.lon, k) + (s.pan ?? 0.03) * (360 / z) * (kk - 0.5), lat: lerp(a.lat, b.lat, k), zoom: z };
   }
   function project(cam) {
     const s = cam.zoom * W / 360, cy = merc(cam.lat);
@@ -299,14 +302,175 @@ export async function makeDocu(ctx, W, H, base = '/story/') {
     ctx.fillStyle = TOK.mace; ctx.beginPath(); ctx.roundRect(W / 2 - 170 * u, H * 0.78, 340 * u, 76 * u, 38 * u); ctx.fill(); txt('SUBSCRIBE', W / 2, H * 0.78 + 40 * u, font(SANS, 800, 30 * u), TOK.parchment, 'center', 4 * u);
     ctx.restore();
   }
-  const KINDS = { map: mapScene, title: titleCard, number: bigNumber, compare, statement, icons: iconRow, nutmeg: nutmegScene, sign: streetSign, oldmap: oldMap, quiet, end: endScreen };
+  // ---------------------------------------------------------------- more scene kinds (illustrations)
+  // ambient: a faint drifting map behind text-only layouts so nothing sits on a flat backdrop
+  function ambient(s, t, api) {
+    const k = (t - api.span[0]);
+    const where = s.ambient === 'banda' ? { lon: 129.84 + Math.sin(k * 0.05) * 0.02, lat: -4.53, zoom: 520 + k * 6 } : s.ambient === 'atlantic' ? { lon: -40 + k * 0.4, lat: 30, zoom: 1.6 } : { lon: 95 + k * 0.5, lat: 5, zoom: 1.5 + k * 0.004 };
+    const P = project(where); ctx.save(); ctx.globalAlpha = 0.16;
+    drawPolys(s.ambient === 'banda' ? Object.values(bandaPolys) : LAND50, P, null, TOK.gold, 1.2 * u, 0); ctx.restore();
+  }
+  function sea(t, horizon, speed = 1) {
+    const g = ctx.createLinearGradient(0, horizon, 0, H); g.addColorStop(0, '#16313F'); g.addColorStop(1, '#0B1820'); ctx.fillStyle = g; ctx.fillRect(0, horizon, W, H - horizon);
+    for (let layer = 0; layer < 7; layer++) {
+      const y0 = horizon + (layer + 1) * (H - horizon) / 8, amp = (3 + layer * 2.2) * u, len = (120 + layer * 60) * u, off = (t * (20 + layer * 14) * speed * u) % len;
+      ctx.strokeStyle = `rgba(201,164,92,${0.08 + layer * 0.035})`; ctx.lineWidth = (1 + layer * 0.35) * u; ctx.beginPath();
+      for (let x = -len; x < W + len; x += 8 * u) { const y = y0 + Math.sin((x + off) / len * Math.PI * 2) * amp; x === -len ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+      ctx.stroke();
+    }
+  }
+  const FLAG = { nl: ['#AE1C28', '#FFFFFF', '#21468B'], en: null, pt: ['#046A38', '#DA291C'] };
+  function flagRect(x, y, w, h, kind, wave = 0) {
+    ctx.save(); ctx.translate(x, y);
+    const path = () => { ctx.beginPath(); ctx.moveTo(0, 0); for (let i = 0; i <= 10; i++) ctx.lineTo(w * i / 10, Math.sin(i * 0.7 + wave) * h * 0.06); for (let i = 10; i >= 0; i--) ctx.lineTo(w * i / 10, h + Math.sin(i * 0.7 + wave) * h * 0.06); ctx.closePath(); };
+    path(); ctx.clip();
+    if (kind === 'en') { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-5, -5, w + 10, h + 10); ctx.fillStyle = '#C8102E'; ctx.fillRect(w * 0.4, -5, w * 0.2, h + 10); ctx.fillRect(-5, h * 0.38, w + 10, h * 0.24); }
+    else if (kind === 'nl') { FLAG.nl.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(-5, -5 + i * h / 3, w + 10, h / 3 + 6); }); }
+    else if (kind === 'pt') { ctx.fillStyle = FLAG.pt[0]; ctx.fillRect(-5, -5, w * 0.4, h + 10); ctx.fillStyle = FLAG.pt[1]; ctx.fillRect(w * 0.4, -5, w, h + 10); }
+    else { ctx.fillStyle = kind || TOK.parchment; ctx.fillRect(-5, -5, w + 10, h + 10); }
+    ctx.restore();
+  }
+  function galleon(x, y, s, t, flag, phase = 0) {
+    ctx.save(); ctx.translate(x, y + Math.sin(t * 1.4 + phase) * 5 * s); ctx.rotate(Math.sin(t * 1.1 + phase) * 0.025); ctx.scale(s, s);
+    ctx.fillStyle = '#2A1E16'; ctx.strokeStyle = TOK.gold; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-170, -10); ctx.lineTo(150, -10); ctx.quadraticCurveTo(190, -30, 200, -60); ctx.lineTo(210, -60); ctx.quadraticCurveTo(200, 30, 120, 50); ctx.lineTo(-130, 50); ctx.quadraticCurveTo(-180, 30, -190, -40); ctx.lineTo(-170, -40); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(201,164,92,0.5)'; ctx.lineWidth = 1.5; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(-110 + i * 45, 18, 6, 0, 7); ctx.stroke(); }
+    [-90, 10, 110].forEach((mx, i) => {
+      const h = [230, 290, 200][i]; ctx.strokeStyle = '#4A3626'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(mx, -10); ctx.lineTo(mx, -10 - h); ctx.stroke();
+      [0, 1].forEach((k) => { const top = -10 - h + 20 + k * h * 0.42, bh = h * 0.36, bw = 120 - k * 10, billow = 14 + Math.sin(t * 2 + i + k) * 4;
+        ctx.fillStyle = '#E8DDC4'; ctx.strokeStyle = 'rgba(58,34,20,0.6)'; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.moveTo(mx - bw / 2, top); ctx.quadraticCurveTo(mx, top + 8, mx + bw / 2, top); ctx.quadraticCurveTo(mx + bw / 2 + billow, top + bh / 2, mx + bw / 2, top + bh); ctx.quadraticCurveTo(mx, top + bh + 10, mx - bw / 2, top + bh); ctx.quadraticCurveTo(mx - bw / 2 + billow, top + bh / 2, mx - bw / 2, top); ctx.fill(); ctx.stroke(); });
+      if (i === 1 && flag) flagRect(mx + 4, -10 - h - 4, 70, 44, flag, t * 4 + phase);
+    });
+    ctx.restore();
+  }
+  function shipScene(s, t, api) {
+    const hz = H * 0.62; ctx.fillStyle = 'rgba(201,164,92,0.05)'; ctx.fillRect(0, 0, W, hz);
+    const lt = t - api.span[0], len = Math.max(3, api.span[1] - api.span[0]);
+    (s.ships || [{ flag: s.flag || 'en' }]).forEach((sp, i) => {
+      const k = clamp((lt - (sp.at || i * 0.6)) / (len * 0.95)); const x = lerp(sp.fromX ?? -0.25, sp.toX ?? 0.6, E.outCubic(k)) * W + i * 60 * u; const sc = (sp.scale || 1) * u * (1 - i * 0.18);
+      galleon(x, hz + (40 + i * -30) * u, sc, t, sp.flag, i * 1.7);
+    });
+    sea(t, hz + 10 * u, s.speed || 1);
+    if (s.label) { const e = enter(t, api.span[0] + 0.5); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.16 + e.dy, font(SERIF, 700, 72 * u), TOK.parchment); if (s.labelSub) txt(s.labelSub, W / 2, H * 0.16 + 66 * u + e.dy, font(SANS, 600, 24 * u), TOK.gold, 'center', 7 * u); ctx.restore(); }
+  }
+  function fortScene(s, t, api) {
+    const lt = t - api.span[0], hz = H * 0.68; sea(t, hz, 0.6);
+    ctx.fillStyle = '#1C2620'; ctx.beginPath(); ctx.moveTo(W * 0.12, hz + 6); ctx.quadraticCurveTo(W * 0.5, hz - 160 * u, W * 0.88, hz + 6); ctx.closePath(); ctx.fill();
+    const k = E.inOutCubic(clamp(lt / 3.5)); const cx = W / 2, by = hz - 90 * u;
+    const P = [[-300, 0], [-300, -150], [-230, -150], [-230, -190], [-160, -190], [-160, -150], [-60, -150], [-60, -230], [60, -230], [60, -150], [160, -150], [160, -190], [230, -190], [230, -150], [300, -150], [300, 0]];
+    let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
+    ctx.save(); ctx.translate(cx, by); ctx.scale(u, u); ctx.strokeStyle = TOK.gold; ctx.lineWidth = 4; ctx.setLineDash([L * k, L]); ctx.fillStyle = `rgba(40,48,44,${0.9 * k})`;
+    ctx.beginPath(); P.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+    if (k > 0.9) { ctx.strokeStyle = 'rgba(201,164,92,0.25)'; ctx.lineWidth = 1.5; for (let y = -140; y < 0; y += 28) { ctx.beginPath(); ctx.moveTo(-290, y); ctx.lineTo(290, y); ctx.stroke(); } }
+    const ct = s.cannonWord ? (api.wordAt(s.cannonWord) ?? api.span[0] + 2) - api.span[0] : 2.5;
+    [-200, -100, 100, 200].forEach((x, i) => { const ck = E.outBack(clamp((lt - ct - i * 0.15) / 0.5), 1.4); if (ck <= 0) return; ctx.save(); ctx.translate(x, -150); ctx.scale(ck, ck); ctx.fillStyle = '#111'; ctx.fillRect(-6, -18, 46, 14); ctx.beginPath(); ctx.arc(0, -8, 10, 0, 7); ctx.fill(); ctx.restore(); });
+    if (s.flag) { ctx.strokeStyle = '#4A3626'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(0, -230); ctx.lineTo(0, -330); ctx.stroke(); if (k > 0.6) flagRect(3, -330, 80, 50, s.flag, t * 3); }
+    ctx.restore();
+    if (s.label) { const e = enter(t, api.span[0] + 0.6); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.16 + e.dy, font(SERIF, 700, 72 * u), TOK.parchment); if (s.labelSub) txt(s.labelSub, W / 2, H * 0.16 + 66 * u + e.dy, font(SANS, 600, 24 * u), TOK.gold, 'center', 7 * u); ctx.restore(); }
+  }
+  function kebunScene(s, t, api) {
+    const lt = t - api.span[0]; const rows = 6, cols = 11;
+    const gx = W * 0.12, gy = H * 0.34, gw = W * 0.76, gh = H * 0.5;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const i = r * cols + c, k = E.outBack(clamp((lt - 0.3 - i * 0.035) / 0.5), 1.6); if (k <= 0) continue;
+      const x = gx + (c + 0.5) * gw / cols + (r % 2) * 12 * u, y = gy + (r + 0.5) * gh / rows, rr = 26 * u * k * (0.9 + 0.2 * M.hash01(i, 3));
+      ctx.fillStyle = '#2F5A36'; ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(201,164,92,0.5)'; ctx.lineWidth = 1.5 * u; ctx.stroke();
+      if (M.hash01(i, 9) > 0.5) { ctx.fillStyle = TOK.mace; ctx.beginPath(); ctx.arc(x + rr * 0.35, y - rr * 0.2, 4 * u * k, 0, 7); ctx.fill(); }
+    }
+    const fk = clamp((lt - 1.5) / 2); if (fk > 0) { ctx.save(); ctx.strokeStyle = TOK.gold; ctx.lineWidth = 2.5 * u; ctx.setLineDash([12 * u, 8 * u]);
+      [[0, 0, 0.5, 0.5], [0.5, 0, 1, 0.5], [0, 0.5, 0.33, 1], [0.33, 0.5, 0.66, 1], [0.66, 0.5, 1, 1]].forEach(([a, b, c2, d2], i) => { const kk = clamp(fk * 5 - i); if (kk <= 0) return; ctx.globalAlpha = kk; ctx.strokeRect(gx + a * gw, gy + b * gh, (c2 - a) * gw, (d2 - b) * gh); });
+      ctx.restore(); }
+    if (s.label) { const e = enter(t, api.span[0] + 0.4); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.17 + e.dy, font(SERIF, 700, 72 * u), TOK.parchment); if (s.labelSub) txt(s.labelSub, W / 2, H * 0.17 + 64 * u + e.dy, font(SANS, 600, 24 * u), TOK.gold, 'center', 7 * u); ctx.restore(); }
+  }
+  function silhouette(s, t, api) {
+    const lt = t - api.span[0], z = 1 + 0.06 * clamp(lt / 8); const cx = W * (s.x ?? 0.34), cy = H * 0.5;
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(z * u, z * u);
+    ctx.strokeStyle = TOK.gold; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(0, 0, 230, 300, 0, 0, 7); ctx.stroke(); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, 0, 244, 314, 0, 0, 7); ctx.stroke();
+    ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, 226, 296, 0, 0, 7); ctx.clip();
+    const g = ctx.createRadialGradient(0, -60, 20, 0, 0, 320); g.addColorStop(0, '#2C3A44'); g.addColorStop(1, '#10171D'); ctx.fillStyle = g; ctx.fillRect(-240, -310, 480, 620);
+    ctx.fillStyle = '#05080B';
+    ctx.beginPath(); ctx.ellipse(0, -60, 70, 88, 0, 0, 7); ctx.fill();                                   // head
+    if (s.hat === 'peci') { ctx.beginPath(); ctx.moveTo(-66, -110); ctx.lineTo(-60, -170); ctx.quadraticCurveTo(0, -180, 60, -170); ctx.lineTo(66, -110); ctx.closePath(); ctx.fill(); }
+    else { ctx.beginPath(); ctx.ellipse(0, -138, 150, 26, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(-70, -140); ctx.quadraticCurveTo(0, -260, 80, -140); ctx.fill(); }   // hat
+    ctx.beginPath(); ctx.moveTo(-200, 300); ctx.quadraticCurveTo(-190, 60, -40, 20); ctx.lineTo(40, 20); ctx.quadraticCurveTo(190, 60, 200, 300); ctx.closePath(); ctx.fill();   // coat
+    ctx.fillStyle = '#E8DDC4'; ctx.beginPath(); ctx.moveTo(-40, 24); ctx.lineTo(0, 90); ctx.lineTo(40, 24); ctx.closePath(); ctx.fill();   // collar
+    ctx.restore(); ctx.restore();
+    const e = enter(t, api.span[0] + 0.5); ctx.save(); ctx.globalAlpha = e.a; const tx = W * 0.6;
+    txt(s.name || '', tx, H * 0.44 + e.dy, font(SERIF, 700, 76 * u), TOK.parchment, 'left');
+    txt((s.role || '').toUpperCase(), tx, H * 0.44 + 70 * u + e.dy, font(SANS, 600, 24 * u), TOK.gold, 'left', 7 * u);
+    if (s.note) txt(s.note, tx, H * 0.44 + 120 * u + e.dy, font(SANS, 500, 20 * u), TOK.dim, 'left');
+    ctx.restore();
+  }
+  function calendar(s, t, api) {
+    const lt = t - api.span[0], len = Math.max(2, api.span[1] - api.span[0] - 0.5); const k = E.inOutSine(clamp((lt - 0.4) / len));
+    const v = Math.round(lerp(s.from || 1, s.to || 1400, k)); const cx = W / 2, cy = H * 0.48;
+    for (let i = 3; i >= 0; i--) { ctx.save(); ctx.translate(cx + i * 10 * u, cy + i * 10 * u); ctx.fillStyle = i ? '#1E262E' : '#ECE2CC'; ctx.beginPath(); ctx.roundRect(-230 * u, -250 * u, 460 * u, 500 * u, 18 * u); ctx.fill(); ctx.restore(); }
+    ctx.fillStyle = TOK.mace; ctx.beginPath(); ctx.roundRect(cx - 230 * u, cy - 250 * u, 460 * u, 110 * u, [18 * u, 18 * u, 0, 0]); ctx.fill();
+    txt((s.head || 'HARI KE-').toUpperCase(), cx, cy - 195 * u, font(SANS, 800, 40 * u), TOK.parchment, 'center', 8 * u);
+    const flip = (lt * 12) % 1; ctx.save(); ctx.globalAlpha = 0.85 + 0.15 * flip; txt(v.toLocaleString('id-ID'), cx, cy + 40 * u, font(SERIF, 700, 160 * u), '#1A1A1A'); ctx.restore();
+    if (s.label) txt(s.label, cx, cy + 190 * u, font(SANS, 600, 17 * u), '#5A5046', 'center', 2 * u);
+    [-120, 120].forEach((dx) => { ctx.fillStyle = '#5A4632'; ctx.beginPath(); ctx.roundRect(cx + dx * u - 12 * u, cy - 270 * u, 24 * u, 50 * u, 8 * u); ctx.fill(); });
+  }
+  function scroll(s, t, api) {
+    const lt = t - api.span[0]; const k = E.inOutCubic(clamp((lt - 0.2) / 1.6)); const cx = W / 2, cy = H * 0.5, w = 820 * u, h = 640 * u * k + 40 * u;
+    ctx.save(); ctx.fillStyle = '#D9C9A3'; ctx.fillRect(cx - w / 2, cy - h / 2, w, h);
+    const g = ctx.createRadialGradient(cx, cy, 100 * u, cx, cy, w * 0.7); g.addColorStop(0, 'rgba(255,245,220,0.3)'); g.addColorStop(1, 'rgba(110,80,40,0.35)'); ctx.fillStyle = g; ctx.fillRect(cx - w / 2, cy - h / 2, w, h);
+    [-1, 1].forEach((d2) => { ctx.fillStyle = '#8A6A44'; ctx.beginPath(); ctx.roundRect(cx - w / 2 - 20 * u, cy + d2 * h / 2 - 22 * u, w + 40 * u, 44 * u, 22 * u); ctx.fill(); });
+    if (k > 0.85) {
+      txt(s.heading || '', cx, cy - 210 * u, font(SERIF, 700, 58 * u), '#3A2414');
+      if (s.sub) txt(s.sub, cx, cy - 150 * u, font(SERIF, 600, 32 * u, true), '#5A4030');
+      for (let i = 0; i < 7; i++) { const lk = clamp((lt - 1.8 - i * 0.35) / 0.5); if (lk <= 0) continue; const lw2 = (560 - (i % 3) * 70) * u * lk; ctx.strokeStyle = 'rgba(58,36,20,0.55)'; ctx.lineWidth = 4 * u; ctx.beginPath(); ctx.moveTo(cx - 290 * u, cy - 80 * u + i * 42 * u); for (let x = 0; x < lw2; x += 10 * u) ctx.lineTo(cx - 290 * u + x, cy - 80 * u + i * 42 * u + Math.sin(x * 0.08 + i) * 2 * u); ctx.stroke(); }
+      const st = s.sealWord ? (api.wordAt(s.sealWord) ?? api.span[0] + 4) : api.span[0] + 4; const sk = E.outBack(clamp((t - st) / 0.35), 2.2);
+      if (sk > 0) { ctx.save(); ctx.translate(cx + 250 * u, cy + 200 * u); ctx.scale(sk, sk); ctx.fillStyle = '#9E1F1F'; ctx.beginPath(); for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2, r = (i % 2 ? 56 : 62) * u; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); txt(s.seal || '1667', 0, 2 * u, font(SERIF, 700, 30 * u), '#E8C9A0'); ctx.restore(); }
+    }
+    ctx.restore();
+  }
+  function chain(s, t, api) {
+    const nodes = s.nodes || []; const n = nodes.length, x0 = W * 0.1, x1 = W * 0.9, base = H * 0.72;
+    nodes.forEach((nd, i) => {
+      const t0 = nd.word ? (api.wordAt(nd.word) ?? api.span[0] + 0.5 + i) : api.span[0] + 0.4 + i * 0.9; const e = enter(t, t0); if (e.a <= 0) return;
+      const x = x0 + (x1 - x0) * i / Math.max(1, n - 1), bh = (40 + Math.pow(i + 1, 1.7) * 26) * u * E.outCubic(clamp((t - t0) / 0.8));
+      ctx.save(); ctx.globalAlpha = e.a;
+      if (i) { ctx.strokeStyle = 'rgba(201,164,92,0.6)'; ctx.lineWidth = 2 * u; ctx.setLineDash([8 * u, 8 * u]); ctx.beginPath(); ctx.moveTo(x0 + (x1 - x0) * (i - 1) / (n - 1) + 40 * u, base + 40 * u); ctx.lineTo(x - 40 * u, base + 40 * u); ctx.stroke(); ctx.setLineDash([]); }
+      for (let c = 0; c < Math.round(bh / (14 * u)); c++) { ctx.fillStyle = c % 2 ? '#C9A45C' : '#B08D48'; ctx.beginPath(); ctx.ellipse(x, base - c * 14 * u, 34 * u, 9 * u, 0, 0, 7); ctx.fill(); }
+      txt(nd.name, x, base + 44 * u + e.dy, font(SERIF, 700, 34 * u), i === 0 ? TOK.mace : TOK.parchment);
+      if (nd.sub) txt(nd.sub, x, base + 84 * u + e.dy, font(SANS, 500, 20 * u), TOK.dim);
+      ctx.restore();
+    });
+    if (s.label) { const e = enter(t, api.span[0] + 0.3); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.17 + e.dy, font(SERIF, 700, 64 * u), TOK.parchment); ctx.restore(); }
+  }
+  function flagSwap(s, t, api) {
+    const lt = t - api.span[0]; const sw = s.swapWord ? (api.wordAt(s.swapWord) ?? api.span[0] + 3) - api.span[0] : 3;
+    const cx = W * 0.5, top = H * 0.2, pole = H * 0.62;
+    ctx.fillStyle = '#5A5F66'; ctx.fillRect(cx - 6 * u, top, 12 * u, pole);
+    const down = clamp((lt - sw) / 1.0), up = clamp((lt - sw - 1.1) / 1.2);
+    const fy = up > 0 ? lerp(top + pole - 160 * u, top + 6 * u, E.outCubic(up)) : lerp(top + 6 * u, top + pole - 160 * u, E.inCubic(down));
+    flagRect(cx + 6 * u, fy, 260 * u, 160 * u, up > 0 ? s.to : s.from, t * 3);
+    if (s.label) { const e = enter(t, api.span[0] + 0.3); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.12 + e.dy, font(SERIF, 700, 64 * u), TOK.parchment); ctx.restore(); }
+    sea(t, H * 0.82, 0.5);
+  }
+  function dotsScene(s, t, api) {          // a population shown as dots that fade (abstract, no imagery)
+    const lt = t - api.span[0]; const n = s.n || 150, keep = s.keep || 10, cols = 25; const fadeT = s.fadeWord ? (api.wordAt(s.fadeWord) ?? api.span[0] + 3) - api.span[0] : 3;
+    for (let i = 0; i < n; i++) { const r = Math.floor(i / cols), c = i % cols; const appear = clamp((lt - 0.2 - i * 0.008) / 0.3); const stay = M.hash01(i, 17) < keep / n;
+      const fade = stay ? 1 : 1 - clamp((lt - fadeT - M.hash01(i, 5) * 2) / 0.8); const a = appear * (0.15 + 0.85 * fade); if (a <= 0) continue;
+      ctx.globalAlpha = a; ctx.fillStyle = stay ? TOK.parchment : TOK.dim; ctx.beginPath(); ctx.arc(W / 2 + (c - (cols - 1) / 2) * 52 * u, H * 0.32 + r * 52 * u, 13 * u, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    if (s.label) { const e = enter(t, api.span[0] + 0.3); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.17 + e.dy, font(SERIF, 600, 46 * u, true), TOK.parchment); ctx.restore(); }
+  }
+  const KINDS = { map: mapScene, title: titleCard, number: bigNumber, compare, statement, icons: iconRow, nutmeg: nutmegScene, sign: streetSign, oldmap: oldMap, quiet, end: endScreen,
+    ship: shipScene, fort: fortScene, kebun: kebunScene, portrait: silhouette, calendar, scroll, chain, flag: flagSwap, dots: dotsScene };
+  const AMBIENT = new Set(['title', 'number', 'compare', 'statement', 'icons', 'nutmeg', 'quiet', 'chain', 'calendar', 'portrait', 'scroll', 'dots']);
 
-  return function docu(p, t, s, api) {
+  return function docu(p, t, s, api, target) {
+    ctx = target || mainCtx;
     background(t, s.dim || 0);
+    if (AMBIENT.has(s.kind) && s.ambient !== 'none') ambient(s, t, api);
     const fn = KINDS[s.kind] || mapScene;
     if (s.kind === 'title') titleCard(s, t, api.span[0]); else fn(s, t, api);
     lowerThird(s, t, api);
     chapterTag(s, t, api.span[0] + 0.1);
     finish(t);
+    ctx = mainCtx;
   };
 }

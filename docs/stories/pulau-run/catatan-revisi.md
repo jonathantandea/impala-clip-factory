@@ -27,3 +27,11 @@ Ide perbaikan:
 - End screen 10 detik (bukan 20): panjangkan bila memakai elemen end screen YouTube.
 - Garis pantai Banda masih dari data OSM yang disederhanakan; ganti dengan data Overpass saat aksesnya jalan.
 - Shorts 9:16 (3 potong) belum dibuat.
+
+## Revisi v2 (23 Nov 2026) — sudah dikerjakan
+- **Penyebab utama "VO error di menit 2": audio terpotong di 2:05.** Musik latar bawaan hanya 125 detik dan mixing memotong seluruh audio mengikuti musik. Diperbaiki di engine (musik di-loop, VO di-pad), berlaku untuk semua video panjang.
+- **Jeda antar bab**: Bab 2–7 menyambung tanpa jeda di rekaman. Disisipkan jeda ±1,6 detik di titik paling hening (total +10,7 detik), tanpa generate ulang.
+- **Visual**: 46 → 78 adegan; kamera peta selalu bergerak pelan; transisi crossfade + push 0,5 detik antar adegan; peta samar bergerak di belakang adegan teks; jenis visual baru: kapal layar, benteng digambar bertahap, siluet tokoh (Courthope, Stuyvesant, orang kaya Banda), bendera berganti, kalender hari pengepungan, gulungan Perjanjian Breda dengan stempel, rantai harga, kebun pala, titik populasi.
+
+## Masih terbuka
+- "Run" terbaca "Ran" (lafal Inggris) di rekaman ElevenLabs. Perlu generate ulang kalimat yang menyebut "Pulau Run" dengan pronunciation dictionary / ejaan fonetik, lalu jalankan ulang penyelarasan. Kalimat terdampak: 7, 8, 30, 47, 48, 51, 54, 70, 77, 116, 119, 122, 125, 141, 146, 150 (indeks kalimat di `docs/examples/pulau-run.json`).
