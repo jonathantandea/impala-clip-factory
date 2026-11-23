@@ -27,7 +27,8 @@ KEY_FILE = Path.home() / ".impala" / "elevenlabs.key"
 VOICES = {"brian": "nPczCjzI2devNBz1zQrb", "sarah": "EXAVITQu4vr4xnSDxMaL", "jessica": "cgSgspJ2msm6clMCkdW9",
           "liam": "TX3LPaxmHKxFdv7VOQHJ", "george": "JBFqnCBsd6RMkjVDRZzb", "charlie": "IKne3meq5aSn9XLyUdCD",
           "will": "bIHbv24MWmeRgasZH58o", "eric": "cjVigY5qzO86Huf0OWal", "daniel": "onwK4e9ZLuTAKqWW03F9",
-          "callum": "N2lVS1w4EtoT3dr4eOWO", "chris": "iP95p4xoKVk53GoZ742B"}
+          "callum": "N2lVS1w4EtoT3dr4eOWO", "chris": "iP95p4xoKVk53GoZ742B",
+          "roger": "CwhRBWXzGAHq8TQ4Fs17", "bill": "pqHfZKP75CvOlQylNhV4", "matilda": "XrExE9yKIg1WjnnlVkGX"}
 LEAD, LATE, TAIL = 0.35, 0.09, 2.4
 
 
