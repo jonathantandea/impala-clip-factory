@@ -250,13 +250,14 @@ def render_finish(name: str) -> str:
     out = VIDEOS / (f"{name}.mp4" if s.get("fmt", "9x16") == "9x16" else f"{name}_{s['fmt']}.mp4")
     cmd = ["ffmpeg", "-y", "-v", "error", "-i", str(s["tmp"]), "-i", str(d / "vo.wav")]
     if music.exists():
-        cmd += ["-i", str(music)]
-        fx = (f"[2:a]atrim=0:{dur:.2f},afade=t=out:st={max(0, dur - 1.8):.2f}:d=1.8,volume=0.32,aformat=channel_layouts=stereo[m];"
-              f"[1:a]aformat=channel_layouts=stereo,asplit=2[v1][v2];"
+        # the bundled beds are ~2 min: loop them, and pad the narration, so long videos keep both to the end
+        cmd += ["-stream_loop", "-1", "-i", str(music)]
+        fx = (f"[2:a]atrim=0:{dur:.2f},asetpts=N/SR/TB,afade=t=out:st={max(0, dur - 1.8):.2f}:d=1.8,volume=0.32,aformat=channel_layouts=stereo[m];"
+              f"[1:a]aformat=channel_layouts=stereo,apad=whole_dur={dur:.2f},asplit=2[v1][v2];"
               f"[m][v1]sidechaincompress=threshold=0.03:ratio=8:attack=15:release=350[md];"
-              f"[md][v2]amix=inputs=2:duration=first:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11[a]")
+              f"[md][v2]amix=inputs=2:duration=longest:normalize=0,atrim=0:{dur:.2f},loudnorm=I=-14:TP=-1.5:LRA=11[a]")
     else:
-        fx = "[1:a]aformat=channel_layouts=stereo,loudnorm=I=-14:TP=-1.5:LRA=11[a]"
+        fx = f"[1:a]aformat=channel_layouts=stereo,apad=whole_dur={dur:.2f},loudnorm=I=-14:TP=-1.5:LRA=11[a]"
     cmd += ["-filter_complex", fx, "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
             "-shortest", "-movflags", "+faststart", str(out)]
     subprocess.run(cmd, check=True, capture_output=True)

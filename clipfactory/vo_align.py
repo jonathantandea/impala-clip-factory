@@ -152,3 +152,45 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def insert_pauses(project: Path, audio: Path, before_lines: dict[int, float], out_audio: Path) -> dict:
+    """Insert silence before the given script lines (line index -> target pause in seconds).
+    Cuts at the quietest 20 ms point near the boundary, shifts word times, rewrites vo.wav + words.json."""
+    import numpy as np
+    data = json.loads((project / "words.json").read_text(encoding="utf-8"))
+    W = data["words"]
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(audio), "-f", "s16le", "-ac", "1", "-ar", "48000", "-"], capture_output=True, check=True).stdout
+    x = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768
+    sr, cuts = 48000, []
+    for ln, pause in sorted(before_lines.items()):
+        i = next((k for k, w in enumerate(W) if w["phrase"] == ln), None)
+        if not i:
+            continue
+        a, b = W[i - 1]["e"], W[i]["s"]
+        lo, hi = int((min(a, b) - 0.25) * sr), int((max(a, b) + 0.15) * sr)
+        win = int(0.02 * sr)
+        energy = [float(np.sqrt(np.mean(x[k:k + win] ** 2))) for k in range(lo, hi - win, win // 2)]
+        k = lo + int(np.argmin(energy)) * (win // 2) + win // 2
+        cuts.append((k / sr, max(0.0, pause - max(0.0, b - a))))
+    pieces, last, shift = [], 0, 0.0
+    for t, add in cuts:
+        k = int(t * sr); pieces.append(x[last:k]); pieces.append(np.zeros(int(add * sr), dtype=np.float32)); last = k
+    pieces.append(x[last:])
+    y = np.concatenate(pieces)
+    import wave
+    with wave.open(str(out_audio), "wb") as wv:
+        wv.setnchannels(1); wv.setsampwidth(2); wv.setframerate(sr)
+        wv.writeframes((np.clip(y, -1, 1) * 32767).astype(np.int16).tobytes())
+    for w in W:
+        off = sum(add for t, add in cuts if w["s"] >= t)
+        w["s"] = round(w["s"] + off, 3); w["e"] = round(w["e"] + off, 3)
+    for k, ph in enumerate(data["phrases"]):
+        ws = [w for w in W if w["phrase"] == k]
+        if ws:
+            ph["s"] = ws[0]["s"]
+    added = sum(a for _, a in cuts)
+    data["duration"] = round(data["duration"] + added, 2)
+    (project / "words.json").write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(out_audio), "-ac", "1", "-ar", "48000", str(project / "vo.wav")], check=True)
+    return {"cuts": [(round(t, 2), round(a, 2)) for t, a in cuts], "added": round(added, 2), "duration": data["duration"]}
