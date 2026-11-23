@@ -282,6 +282,11 @@ export function character(scene, spec) {
   const skull = cast(new THREE.Mesh(new THREE.SphereGeometry(0.34, 28, 20), skin)); skull.position.y = 0.3; head.add(skull);
   // hair cap
   const hair = new THREE.Mesh(new THREE.SphereGeometry(0.345, 24, 12, 0, M.TAU, 0, 1.1), spec.hair ? mat(spec.hair) : blk); hair.position.y = 0.3; hair.rotation.x = -0.35; head.add(hair);
+  if (spec.hairLong) {
+    const hm = mat(spec.hairLong === true ? '#2A1E18' : spec.hairLong);
+    const back = cast(new THREE.Mesh(new THREE.SphereGeometry(0.36, 20, 14), hm)); back.scale.set(1.02, 1.25, 0.8); back.position.set(0, 0.16, -0.1); head.add(back);
+    hair.material = hm;
+  }
   const face = new THREE.Group(); face.position.set(0, 0.3, 0); head.add(face);
   const eyes = [-1, 1].map((d) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), blk); e.position.set(d * 0.11, 0.03, 0.315); face.add(e); return e; });
   const brows = [-1, 1].map((d) => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.018, 0.02), blk); b.position.set(d * 0.11, 0.11, 0.31); face.add(b); return b; });
@@ -345,7 +350,12 @@ export function character(scene, spec) {
     const blink = (Math.sin(t * 1.3 + x) > 0.985) ? 0.15 : 1;
     eyes.forEach((e) => { e.scale.y = blink; e.scale.x = shock ? 1.3 : 1; if (shock) e.scale.y = 1.3; });
   }
-  return { obj: root, pose, arm: (i) => arms[i], root, hat: hatObj, head };
+  const items = {};
+  function hold(type) {
+    Object.entries(items).forEach(([k, m]) => { m.visible = k === type; });
+    if (type && !items[type]) { items[type] = handItem(type); arms[1].add(items[type]); }
+  }
+  return { obj: root, pose, arm: (i) => arms[i], root, hat: hatObj, head, hold };
 }
 
 // ======================================================================== sea + room sets, octopus
@@ -1199,4 +1209,216 @@ export function rangerHat(parent) {
   const band = new THREE.Mesh(new THREE.CylinderGeometry(0.305, 0.305, 0.05, 20), mat('#5A4A2E')); band.position.y = 0.03; g.add(band);
   const brim = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.025, 24), mat('#A88C52'))); g.add(brim);
   parent.add(g); return g;
+}
+
+// ======================================================================== interior set (90s rooms) + retro props
+// Four open-front rooms side by side: kamar (x 0), ruang tamu (x 14), kantor (x 28), kafe (x 42). Front open toward +z.
+export function interiorSet() {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#2A2622');
+  scene.add(new THREE.HemisphereLight('#FFF6E6', '#7A6450', 1.35));
+  const key = new THREE.DirectionalLight('#FFF0D8', 1.6); key.position.set(6, 12, 14); key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -30, right: 30, top: 12, bottom: -12, near: 1, far: 60 });
+  key.target.position.set(21, 0, -1); key.shadow.bias = -0.0006; scene.add(key, key.target);
+  const box = (w, h, d, c, x, y, z, o) => { const m = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c, o))); m.position.set(x, y, z); scene.add(m); return m; };
+  const ROOMS = [
+    { cx: 0, wall: '#E9D3A8', floor: '#B98B5E', trim: '#8A5E3A' },
+    { cx: 14, wall: '#CFE0C8', floor: '#D8CDB8', trim: '#6F8A66' },
+    { cx: 28, wall: '#DCDAD0', floor: '#BFC3C4', trim: '#7C8288' },
+    { cx: 42, wall: '#E3B98A', floor: '#9C6B45', trim: '#6B3F22' },
+  ];
+  ROOMS.forEach(({ cx, wall, floor, trim }) => {
+    box(10, 0.1, 7, floor, cx, -0.05, 0.5);
+    box(10, 4, 0.2, wall, cx, 2, -3.1);
+    [-1, 1].forEach((d) => box(0.2, 4, 7, wall, cx + d * 5.1, 2, 0.4));
+    box(10, 0.18, 0.06, trim, cx, 0.09, -2.98);
+  });
+  // window helper (back wall)
+  const windowAt = (x, y = 2.1, w = 1.5, h = 1.2) => {
+    box(w + 0.16, h + 0.16, 0.08, '#F4F1EA', x, y, -2.98);
+    box(w, h, 0.06, '#A9DDF5', x, y, -2.95, { emissive: '#CFEFFF', emissiveIntensity: 0.55 });
+    box(0.06, h, 0.08, '#F4F1EA', x, y, -2.93); box(w, 0.06, 0.08, '#F4F1EA', x, y, -2.93);
+    [-1, 1].forEach((d) => box(0.35, h + 0.5, 0.05, '#C0504D', x + d * (w / 2 + 0.2), y - 0.1, -2.9));
+  };
+  // kamar: window, poster, rug
+  windowAt(2.6);
+  const poster = canvasTex(256, 360, (c, w, h) => { c.fillStyle = '#1E2A44'; c.fillRect(0, 0, w, h); c.fillStyle = '#F2C14E'; c.beginPath(); c.arc(w / 2, 140, 70, 0, M.TAU); c.fill();
+    c.fillStyle = '#E85D75'; c.fillRect(30, 240, w - 60, 18); c.fillStyle = '#FFFFFF'; c.font = '800 44px Display'; c.textAlign = 'center'; c.fillText('ROCK 95', w / 2, 320); });
+  const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.26), new THREE.MeshLambertMaterial({ map: poster })); pm.position.set(-1.2, 2.3, -2.99); scene.add(pm);
+  const rug = new THREE.Mesh(new THREE.CircleGeometry(1.4, 28), mat('#7A9CC6')); rug.rotation.x = -Math.PI / 2; rug.position.set(0.6, 0.01, 0.6); rug.scale.y = 0.6; scene.add(rug);
+  // ruang tamu: window, sofa, plant
+  windowAt(11.6);
+  box(2.6, 0.45, 0.9, '#8A5A3C', 18.2, 0.4, 0.6); box(2.6, 0.7, 0.25, '#8A5A3C', 18.2, 0.75, 1.05);
+  box(1.6, 0.06, 0.6, '#7A4E2D', 13.3, 0.74, -0.9); [-0.7, 0.7].forEach((d) => box(0.06, 0.72, 0.5, '#5E3B22', 13.3 + d, 0.36, -0.9));
+  // kantor: filing cabinet, partition, plant
+  box(0.7, 1.4, 0.6, '#9AA3A8', 23.8, 0.7, -2.6); box(0.7, 1.4, 0.6, '#9AA3A8', 24.6, 0.7, -2.6);
+  windowAt(25.6, 2.3, 1.2, 1.0);
+  // kafe: counter, hanging lamps, menu board
+  box(3.2, 1.1, 0.8, '#6B3F22', 45.4, 0.55, -2.2); box(3.4, 0.08, 0.9, '#3A2418', 45.4, 1.12, -2.2);
+  const menu = canvasTex(256, 180, (c, w, h) => { c.fillStyle = '#2B2B2B'; c.fillRect(0, 0, w, h); c.fillStyle = '#F4F1EA'; c.font = '800 40px Display'; c.textAlign = 'center'; c.fillText('MENU', w / 2, 48);
+    c.font = '24px sans-serif'; ['KOPI ......... 2.000', 'TEH ........... 1.500', 'ES JERUK .... 2.500'].forEach((l, i) => c.fillText(l, w / 2, 92 + i * 30)); });
+  const mm = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.12), new THREE.MeshLambertMaterial({ map: menu })); mm.position.set(45.4, 2.5, -2.99); scene.add(mm);
+  [40.4, 42, 43.6].forEach((x) => { box(0.02, 1.2, 0.02, '#222', x, 3.4, -0.4); const l = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.3, 14, 1, true), mat('#F2C14E', { emissive: '#FFD27A', emissiveIntensity: 0.6, side: THREE.DoubleSide })); l.position.set(x, 2.7, -0.4); scene.add(l); });
+  // plants
+  [[21.6, -2.4], [32.4, -2.4], [38.6, -2.4]].forEach(([x, z]) => { box(0.4, 0.5, 0.4, '#B5643A', x, 0.25, z); const b = cast(new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 1), mat('#4E9A3E'))); b.position.set(x, 0.85, z); scene.add(b); });
+  return { scene, update() {} };
+}
+
+const textTex = (w, h, paint) => canvasTex(w, h, paint);
+export function bed(scene) {
+  const g = new THREE.Group();
+  const b = (w, h, d, c, x, y, z) => { const m = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c))); m.position.set(x, y, z); g.add(m); return m; };
+  b(2.2, 0.35, 1.3, '#7A4E2D', 0, 0.2, 0); b(2.1, 0.18, 1.22, '#F4F1EA', 0, 0.45, 0);
+  b(0.1, 1.0, 1.3, '#7A4E2D', -1.1, 0.5, 0);
+  const pillow = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.6, 4, 10), mat('#FFFFFF'))); pillow.rotation.x = Math.PI / 2; pillow.position.set(-0.78, 0.62, 0); g.add(pillow);
+  b(1.3, 0.1, 1.24, '#5B8DC9', 0.35, 0.56, 0);
+  // nightstand
+  b(0.55, 0.55, 0.5, '#8A5E3A', -1.5, 0.28, -0.35);
+  scene.add(g); return { obj: g };
+}
+export function radio(scene) {
+  const g = new THREE.Group();
+  const body = cast(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.32, 0.16), mat('#3A3A3E'))); body.position.y = 0.16; g.add(body);
+  [-1, 1].forEach((d) => { const s = new THREE.Mesh(new THREE.CircleGeometry(0.1, 20), mat('#1A1A1C')); s.position.set(d * 0.2, 0.15, 0.081); g.add(s);
+    const r = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.115, 20), mat('#9A9AA0')); r.position.set(d * 0.2, 0.15, 0.082); g.add(r); });
+  const deck = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.1), mat('#C9C2B0')); deck.position.set(0, 0.16, 0.082); g.add(deck);
+  const tape = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.06), mat('#E8642A')); tape.position.set(0, 0.16, 0.083); g.add(tape);
+  ['#C0392B', '#888', '#888', '#888'].forEach((c, i) => { const k = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.03), mat(c)); k.position.set(-0.045 + i * 0.03, 0.33, 0.04); g.add(k); });
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.5, 4), mat('#BBBBBB')); ant.position.set(0.26, 0.5, -0.04); ant.rotation.z = -0.4; g.add(ant);
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.012, 6, 16, Math.PI), mat('#BBBBBB')); handle.position.set(0, 0.32, 0); g.add(handle);
+  scene.add(g); return { obj: g };
+}
+export function wallCalendar(scene, { text = '1995', month = 'JANUARI' } = {}) {
+  const tex = textTex(256, 340, (c, w, h) => {
+    c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, w, h); c.fillStyle = '#C0392B'; c.fillRect(0, 0, w, 120);
+    c.fillStyle = '#FFFFFF'; c.font = '800 92px Display'; c.textAlign = 'center'; c.fillText(text, w / 2, 96);
+    c.fillStyle = '#333'; c.font = '800 30px Display'; c.fillText(month, w / 2, 160);
+    c.font = '20px sans-serif'; for (let i = 0; i < 31; i++) { c.fillStyle = i % 7 === 0 ? '#C0392B' : '#333'; c.fillText(String(i + 1), 30 + (i % 7) * 32, 200 + Math.floor(i / 7) * 30); }
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.93), new THREE.MeshLambertMaterial({ map: tex })); scene.add(m); return { obj: m };
+}
+function coilGeo(len = 0.6, r = 0.035, turns = 16) {
+  const pts = []; for (let i = 0; i <= turns * 12; i++) { const a = i / 12 * M.TAU; pts.push(new THREE.Vector3(Math.cos(a) * r, -i / (turns * 12) * len, Math.sin(a) * r)); }
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), turns * 12, 0.008, 5, false);
+}
+function handsetMesh() {
+  const g = new THREE.Group();
+  const bar = cast(new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.2, 4, 8), mat('#E8E0CC'))); bar.rotation.z = Math.PI / 2; g.add(bar);
+  [-1, 1].forEach((d) => { const e = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.05, 12), mat('#E8E0CC'))); e.position.set(d * 0.13, -0.03, 0); g.add(e); });
+  return g;
+}
+export function landline(scene) {
+  const g = new THREE.Group();
+  const base = cast(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.24), mat('#E8E0CC'))); base.position.y = 0.05; g.add(base);
+  const dial = new THREE.Mesh(new THREE.CircleGeometry(0.07, 18), mat('#C9BFA8')); dial.rotation.x = -Math.PI / 2 + 0.3; dial.position.set(0, 0.105, 0.04); g.add(dial);
+  const hs = handsetMesh(); hs.position.set(0, 0.15, -0.03); g.add(hs);
+  const coil = new THREE.Mesh(coilGeo(0.25, 0.025, 10), mat('#E8E0CC')); coil.rotation.z = Math.PI / 2; coil.position.set(-0.15, 0.08, 0.05); g.add(coil);
+  scene.add(g); return { obj: g, handset: hs };
+}
+export function crtTV(scene, { text = 'BERITA PAGI', sub = '06:00' } = {}) {
+  const g = new THREE.Group();
+  const b = cast(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.72, 0.7), mat('#4A443E'))); b.position.y = 0.36 + 0.6; g.add(b);
+  const stand = cast(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.6), mat('#7A4E2D'))); stand.position.y = 0.3; g.add(stand);
+  const tex = textTex(320, 240, (c, w, h) => {
+    const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#2E6FB0'); gr.addColorStop(1, '#173E6B'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#F2C14E'; c.beginPath(); c.arc(90, 105, 38, 0, M.TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.ellipse(130, 125, 50, 26, 0, 0, M.TAU); c.fill();
+    c.fillStyle = '#C0392B'; c.fillRect(0, 180, w, 60); c.fillStyle = '#FFFFFF'; c.font = '800 34px Display'; c.textAlign = 'center'; c.fillText(text, w / 2, 222);
+    c.font = '800 40px Display'; c.fillText(sub, 245, 120);
+    c.fillStyle = 'rgba(0,0,0,0.12)'; for (let y = 0; y < h; y += 4) c.fillRect(0, y, w, 2);
+  });
+  const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.52), new THREE.MeshBasicMaterial({ map: tex })); sc.position.set(-0.03, 0.97, 0.352); g.add(sc);
+  [0.34, 0.34].forEach((x, i) => { const k = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 10), mat('#222')); k.rotation.x = Math.PI / 2; k.position.set(x, 1.1 - i * 0.14, 0.36); g.add(k); });
+  [-1, 1].forEach((d) => { const a = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.6, 4), mat('#BBB')); a.position.set(d * 0.15, 1.55, -0.05); a.rotation.z = d * 0.5; g.add(a); });
+  scene.add(g); return { obj: g };
+}
+export function officeDesk(scene) {
+  const g = new THREE.Group();
+  const b = (w, h, d, c, x, y, z) => { const m = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c))); m.position.set(x, y, z); g.add(m); return m; };
+  b(1.8, 0.06, 0.85, '#A0794F', 0, 0.76, 0); b(0.06, 0.74, 0.8, '#7A5A3A', -0.85, 0.37, 0); b(0.06, 0.74, 0.8, '#7A5A3A', 0.85, 0.37, 0);
+  b(0.5, 0.42, 0.45, '#D9D2BE', -0.2, 1.0, -0.15);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.28), mat('#2F5E3A', { emissive: '#3FA35A', emissiveIntensity: 0.6 })); scr.position.set(-0.2, 1.02, 0.08); g.add(scr);
+  b(0.5, 0.03, 0.18, '#D9D2BE', -0.2, 0.8, 0.22);
+  [[0.45, 0.82, 0.1], [0.5, 0.86, 0.05]].forEach(([x, y, z]) => b(0.32, 0.04, 0.42, '#FFFFFF', x, y, z));
+  // chair
+  b(0.5, 0.06, 0.5, '#2E3A4A', 0, 0.48, 0.75); b(0.5, 0.6, 0.06, '#2E3A4A', 0, 0.8, 1.0); b(0.06, 0.45, 0.06, '#555', 0, 0.23, 0.75);
+  scene.add(g); return { obj: g };
+}
+export function faxMachine(scene) {
+  const g = new THREE.Group();
+  const b = (w, h, d, c, x, y, z) => { const m = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c))); m.position.set(x, y, z); g.add(m); return m; };
+  b(0.8, 0.72, 0.6, '#8A7B66', 0, 0.36, 0);                    // side table
+  b(0.55, 0.18, 0.42, '#E2DAC6', 0, 0.81, 0);
+  b(0.2, 0.06, 0.12, '#3A3A3A', 0.15, 0.91, 0.12);
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 6), mat('#5CE08A', { emissive: '#5CE08A', emissiveIntensity: 1 })); led.position.set(-0.2, 0.91, 0.18); g.add(led);
+  const tex = textTex(128, 256, (c, w, h) => { c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, w, h); c.fillStyle = '#333'; for (let y = 20; y < h; y += 16) c.fillRect(12, y, w - 24 - (y % 48 ? 0 : 40), 5); });
+  const paper = new THREE.Group(); paper.position.set(-0.05, 0.86, 0.21); g.add(paper);
+  const pm = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.42), new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide })); pm.position.y = -0.21; paper.add(pm);
+  paper.rotation.x = -1.2;
+  scene.add(g);
+  return { obj: g, update(t, k) { paper.scale.set(1, Math.max(0.001, k), 1); paper.rotation.x = -1.2 + k * 0.5; led.material.emissiveIntensity = 0.4 + Math.abs(Math.sin(t * 8)) * 0.8; } };
+}
+export function wallClock(scene, { time = '15:00' } = {}) {
+  const [hh, mm] = time.split(':').map(Number);
+  const tex = textTex(256, 256, (c, w, h) => {
+    c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(128, 128, 120, 0, M.TAU); c.fill(); c.lineWidth = 12; c.strokeStyle = '#2E2E2E'; c.stroke();
+    c.fillStyle = '#2E2E2E'; for (let i = 0; i < 12; i++) { const a = i / 12 * M.TAU; c.fillRect(128 + Math.sin(a) * 96 - 4, 128 - Math.cos(a) * 96 - 10, 8, 20); }
+    const hand = (a, l, wd, col) => { c.strokeStyle = col; c.lineWidth = wd; c.lineCap = 'round'; c.beginPath(); c.moveTo(128, 128); c.lineTo(128 + Math.sin(a) * l, 128 - Math.cos(a) * l); c.stroke(); };
+    hand(((hh % 12) + mm / 60) / 12 * M.TAU, 60, 12, '#2E2E2E'); hand(mm / 60 * M.TAU, 92, 8, '#2E2E2E');
+  });
+  const m = new THREE.Mesh(new THREE.CircleGeometry(0.4, 32), new THREE.MeshLambertMaterial({ map: tex })); scene.add(m); return { obj: m };
+}
+export function cafeTable(scene, { glasses = 4 } = {}) {
+  const g = new THREE.Group();
+  const top = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.06, 28), mat('#5A3B24'))); top.position.y = 0.74; g.add(top);
+  const leg = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.25, 0.72, 10), mat('#2E2E2E'))); leg.position.y = 0.36; g.add(leg);
+  const gm = mat('#D9EEF5', { transparent: true, opacity: 0.6 }), drink = ['#C9762E', '#F2A93B', '#7A4A2E', '#E85D75'];
+  for (let i = 0; i < glasses; i++) {
+    const a = i / glasses * M.TAU + 0.4;
+    const gl = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.16, 12), gm); gl.position.set(Math.cos(a) * 0.42, 0.85, Math.sin(a) * 0.42); g.add(gl);
+    const d = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.045, 0.1, 12), mat(drink[i % 4])); d.position.set(Math.cos(a) * 0.42, 0.82, Math.sin(a) * 0.42); g.add(d);
+  }
+  scene.add(g); return { obj: g };
+}
+export function postBox(scene) {
+  const g = new THREE.Group();
+  const red = mat('#C8352E');
+  const b = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.3, 1.1, 18), red)); b.position.y = 0.55; g.add(b);
+  const top = cast(new THREE.Mesh(new THREE.SphereGeometry(0.29, 18, 10, 0, M.TAU, 0, Math.PI / 2), red)); top.position.y = 1.1; g.add(top);
+  const slot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.04), mat('#1E1B19')); slot.position.set(0, 0.95, 0.28); g.add(slot);
+  const tex = textTex(128, 64, (c, w, h) => { c.fillStyle = '#F2C14E'; c.fillRect(0, 0, w, h); c.fillStyle = '#C8352E'; c.font = '800 44px Display'; c.textAlign = 'center'; c.fillText('POS', w / 2, 48); });
+  const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.15), new THREE.MeshLambertMaterial({ map: tex })); lab.position.set(0, 0.72, 0.3); g.add(lab);
+  scene.add(g); return { obj: g };
+}
+export function cafeFront(scene, { name = 'KAFE' } = {}) {
+  const g = new THREE.Group();
+  const b = (w, h, d, c, x, y, z, o) => { const m = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c, o))); m.position.set(x, y, z); g.add(m); return m; };
+  b(6, 3.6, 3, '#F0E2C8', 0, 1.8, -1.5);
+  b(2.2, 1.6, 0.06, '#A9DDF5', -1.5, 1.4, 0.02, { emissive: '#FFE7B0', emissiveIntensity: 0.35 });
+  b(1.0, 2.1, 0.06, '#6B3F22', 1.3, 1.05, 0.02);
+  for (let i = 0; i < 8; i++) { const s = cast(new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.06, 1.0), mat(i % 2 ? '#FFFFFF' : '#2F8F6A'))); s.position.set(-2.64 + i * 0.76, 2.5, 0.45); s.rotation.x = 0.35; g.add(s); }
+  const tex = textTex(256, 80, (c, w, h) => { c.fillStyle = '#2B2B2B'; c.fillRect(0, 0, w, h); c.fillStyle = '#F2C14E'; c.font = '800 56px Display'; c.textAlign = 'center'; c.fillText(name, w / 2, 60); });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.75), new THREE.MeshLambertMaterial({ map: tex })); sign.position.set(0, 3.15, 0.03); g.add(sign);
+  scene.add(g); return { obj: g };
+}
+// small items a person can hold in the right hand
+export function handItem(type) {
+  const g = new THREE.Group();
+  if (type === 'hp') {
+    const b = cast(new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.15, 0.012), mat('#1E1E22'))); g.add(b);
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.135), mat('#7FC6EE', { emissive: '#9FD8FF', emissiveIntensity: 0.9 })); s.position.z = 0.0065; g.add(s);
+    g.position.set(0, -0.5, 0.05); g.rotation.x = -0.9;
+  } else if (type === 'radio') {
+    const r = radio(g); r.obj.scale.setScalar(0.7); r.obj.position.set(0, -0.6, 0.1); r.obj.rotation.x = 1.2;
+  } else if (type === 'kabel') {
+    const c = new THREE.Mesh(coilGeo(0.5, 0.03, 14), mat('#E8E0CC')); c.position.set(0, -0.48, 0.02); g.add(c);
+    const plug = cast(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 0.03), mat('#F4F1EA'))); plug.position.set(0, -0.47, 0.04); g.add(plug);
+  } else if (type === 'gagang') {
+    const h = handsetMesh(); h.rotation.set(0, Math.PI / 2, Math.PI / 2); h.position.set(0, -0.5, 0.04); g.add(h);
+    const c = new THREE.Mesh(coilGeo(0.5, 0.025, 14), mat('#E8E0CC')); c.position.set(0, -0.6, 0.04); g.add(c);
+  } else if (type === 'surat') {
+    const tex = canvasTex(128, 90, (c, w, h) => { c.fillStyle = '#FFF6E6'; c.fillRect(0, 0, w, h); c.strokeStyle = '#C8A06A'; c.lineWidth = 4; c.beginPath(); c.moveTo(0, 0); c.lineTo(w / 2, h * 0.55); c.lineTo(w, 0); c.stroke();
+      c.fillStyle = '#E2574C'; c.beginPath(); c.arc(w / 2, h * 0.62, 10, 0, M.TAU); c.fill(); });
+    const e = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.15), new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide })); e.position.set(0, -0.52, 0.05); g.add(e);
+  }
+  return g;
 }

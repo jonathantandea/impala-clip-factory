@@ -1,0 +1,1023 @@
+{
+  "title": "Gen Z Tanpa HP dan Sosmed",
+  "voice": "brian",
+  "voices": {
+    "narator": "brian",
+    "raka": "liam",
+    "parkir": "callum",
+    "bapak": "daniel"
+  },
+  "language": "id",
+  "music": "ceria",
+  "caption_color": "#FFD23F",
+  "script": [
+    {
+      "text": "Gimana jadinya kalau Gen Z tanpa HP dan sosmed?",
+      "speaker": "narator",
+      "gap": 1.0
+    },
+    {
+      "text": "HP gue mana? Kok... radio?!",
+      "speaker": "raka",
+      "gap": 1.0
+    },
+    {
+      "text": "Selamat datang di dunia tanpa notifikasi.",
+      "speaker": "narator",
+      "gap": 0.4
+    },
+    {
+      "text": "Ini colokan apaan?!",
+      "speaker": "raka",
+      "gap": 1.0
+    },
+    {
+      "text": "Mau cek cuaca? Tunggu berita jam enam.",
+      "speaker": "narator",
+      "gap": 0.8
+    },
+    {
+      "text": "Mau dengar lagu favorit? Tunggu diputar penyiar, lalu rekam pakai kaset.",
+      "speaker": "narator",
+      "gap": 1.0
+    },
+    {
+      "text": "Janjian harus tepat waktu. Nggak ada otw, nggak ada share lok.",
+      "speaker": "narator",
+      "gap": 1.0
+    },
+    {
+      "text": "Pak, Jalan Melati di mana?",
+      "speaker": "raka",
+      "gap": 0.4
+    },
+    {
+      "text": "Lurus, kiri, kanan, tanya lagi.",
+      "speaker": "parkir",
+      "gap": 1.2
+    },
+    {
+      "text": "Nongkrong tanpa HP? Semua orang terpaksa... ngobrol.",
+      "speaker": "narator",
+      "gap": 1.4
+    },
+    {
+      "text": "Kerja nggak bisa sambil scroll. Jempol lu bingung mau ngapain.",
+      "speaker": "narator",
+      "gap": 1.0
+    },
+    {
+      "text": "Kirim file? Pakai mesin faks. Lima menit buat satu halaman.",
+      "speaker": "narator",
+      "gap": 1.4
+    },
+    {
+      "text": "Kok kerjaan gue udah beres?!",
+      "speaker": "raka",
+      "gap": 1.2
+    },
+    {
+      "text": "Mau kenalan? Harus langsung. Nggak bisa follow dulu.",
+      "speaker": "narator",
+      "gap": 0.8
+    },
+    {
+      "text": "Kirim surat, tunggu balasan dua minggu.",
+      "speaker": "narator",
+      "gap": 1.6
+    },
+    {
+      "text": "Ini siapa? Mau apa?",
+      "speaker": "bapak",
+      "gap": 1.4
+    },
+    {
+      "text": "Untungnya... cuma mimpi.",
+      "speaker": "narator",
+      "gap": 3.0
+    },
+    {
+      "text": "Balikin gue ke sembilan puluhan.",
+      "speaker": "raka"
+    }
+  ],
+  "characters": {
+    "raka": {
+      "shirt": [
+        "#3A3F58",
+        "#3A3F58",
+        "#E85D75"
+      ],
+      "sarong": [
+        "#3D5A80",
+        "#2B4162"
+      ]
+    },
+    "parkir": {
+      "shirt": [
+        "#F07A1A",
+        "#F2E15A",
+        "#F07A1A"
+      ],
+      "sarong": "abu",
+      "hat": "cap",
+      "capColor": "#F07A1A",
+      "whistle": true
+    },
+    "teman1": {
+      "shirt": "kuning",
+      "sarong": "abu"
+    },
+    "teman2": {
+      "shirt": "ungu",
+      "sarong": "coklat",
+      "hairLong": true,
+      "blush": true
+    },
+    "teman3": {
+      "shirt": "hijau",
+      "sarong": "abu",
+      "hat": "cap",
+      "capColor": "#2E2E2E"
+    },
+    "cewek": {
+      "shirt": [
+        "#E85D75",
+        "#D84B63",
+        "#FFFFFF"
+      ],
+      "sarong": "merah",
+      "hairLong": true,
+      "blush": true
+    },
+    "bapak": {
+      "shirt": "coklat",
+      "sarong": "coklat",
+      "hat": "peci",
+      "mustache": true
+    }
+  },
+  "world": {
+    "props": [
+      {
+        "type": "bed",
+        "id": "kasur",
+        "x": -1.6,
+        "z": -2.0,
+        "set": "interior"
+      },
+      {
+        "type": "calendar",
+        "id": "kalender",
+        "x": 0.25,
+        "y": 2.0,
+        "z": -2.98,
+        "text": "1995",
+        "month": "JANUARI",
+        "set": "interior"
+      },
+      {
+        "type": "tv",
+        "id": "tv",
+        "x": 16.0,
+        "z": -2.3,
+        "text": "BERITA PAGI",
+        "sub": "06:00",
+        "set": "interior"
+      },
+      {
+        "type": "radio",
+        "id": "radio",
+        "x": 12.9,
+        "y": 0.77,
+        "z": -0.9,
+        "set": "interior"
+      },
+      {
+        "type": "landline",
+        "id": "telepon",
+        "x": 13.8,
+        "y": 0.77,
+        "z": -0.85,
+        "set": "interior"
+      },
+      {
+        "type": "desk",
+        "id": "meja_kantor",
+        "x": 28,
+        "z": -1.6,
+        "rot": 3.14159,
+        "set": "interior"
+      },
+      {
+        "type": "fax",
+        "id": "faks",
+        "x": 31.4,
+        "z": -2.3,
+        "rot": -0.5,
+        "set": "interior"
+      },
+      {
+        "type": "wall_clock",
+        "id": "jam",
+        "x": 28,
+        "y": 2.75,
+        "z": -2.98,
+        "time": "15:00",
+        "set": "interior"
+      },
+      {
+        "type": "cafe_table",
+        "id": "meja",
+        "x": 42,
+        "z": -0.4,
+        "glasses": 4,
+        "set": "interior"
+      },
+      {
+        "type": "cafe_front",
+        "id": "kafe",
+        "x": -22,
+        "z": 6.0,
+        "rot": 3.14159,
+        "name": "KAFE",
+        "set": "kota"
+      },
+      {
+        "type": "post_box",
+        "id": "pos",
+        "x": -9.2,
+        "z": 4.4,
+        "set": "kota"
+      }
+    ]
+  },
+  "scenes": [
+    {
+      "set": "interior",
+      "title": "TANPA HP?",
+      "hide": [
+        "kalender"
+      ],
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            -1.55,
+            -2.0
+          ],
+          "y": 0.09,
+          "lying": true,
+          "pose": "hp",
+          "item": "hp",
+          "mood": "smile"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -1.45,
+          2.4,
+          2.9
+        ],
+        "look": [
+          -1.5,
+          0.75,
+          -2.0
+        ],
+        "to": {
+          "pos": [
+            -1.45,
+            2.1,
+            2.2
+          ],
+          "look": [
+            -1.5,
+            0.75,
+            -2.0
+          ]
+        }
+      },
+      "line": 0
+    },
+    {
+      "set": "interior",
+      "line": 1,
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            -1.9,
+            -2.0
+          ],
+          "y": 0.12,
+          "sit": true,
+          "pose": "grope",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -1.3,
+          1.3,
+          0.7
+        ],
+        "look": [
+          -1.9,
+          1.0,
+          -2.0
+        ]
+      }
+    },
+    {
+      "set": "interior",
+      "line": 1,
+      "at_word": "radio",
+      "title": "1995?!",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            -1.15,
+            -2.0
+          ],
+          "y": 0.12,
+          "sit": true,
+          "pose": "hp",
+          "item": "radio",
+          "mood": "shock"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -0.45,
+          1.5,
+          2.6
+        ],
+        "look": [
+          -0.45,
+          1.4,
+          -2.3
+        ]
+      }
+    },
+    {
+      "set": "interior",
+      "title": "NO NOTIF",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            1.6,
+            -2.3
+          ],
+          "pose": "hold_up",
+          "item": "kabel",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          2.0,
+          1.5,
+          1.0
+        ],
+        "look": [
+          1.6,
+          1.25,
+          -2.3
+        ]
+      },
+      "line": 2
+    },
+    {
+      "set": "interior",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            1.6,
+            -2.3
+          ],
+          "pose": "hold_up",
+          "item": "kabel",
+          "mood": "shock"
+        }
+      ],
+      "cam": {
+        "pos": [
+          1.75,
+          1.75,
+          -0.5
+        ],
+        "look": [
+          1.6,
+          1.6,
+          -2.3
+        ]
+      },
+      "line": 3
+    },
+    {
+      "set": "interior",
+      "title": "CEK CUACA",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            11.6,
+            -2.2
+          ],
+          "face": "away",
+          "pose": "hands_hips",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          12.8,
+          1.55,
+          0.8
+        ],
+        "look": [
+          11.8,
+          1.6,
+          -2.8
+        ]
+      },
+      "line": 4
+    },
+    {
+      "set": "interior",
+      "line": 4,
+      "at_word": "tunggu",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            17.4,
+            0.55
+          ],
+          "y": 0.0,
+          "sit": true,
+          "face": "tv",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          18.6,
+          3.0,
+          4.6
+        ],
+        "look": [
+          16.0,
+          0.9,
+          -2.3
+        ]
+      }
+    },
+    {
+      "set": "interior",
+      "title": "REKAM KASET",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            12.9,
+            -1.6
+          ],
+          "pose": "press",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          13.5,
+          1.55,
+          1.9
+        ],
+        "look": [
+          13.0,
+          1.25,
+          -1.2
+        ]
+      },
+      "line": 5
+    },
+    {
+      "set": "kota",
+      "title": "NO SHARELOK",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            -22,
+            4.4
+          ],
+          "pose": "watch",
+          "mood": "neutral",
+          "pose_at": [
+            {
+              "word": "nggak",
+              "pose": "nervous"
+            },
+            {
+              "word": "share",
+              "pose": "watch",
+              "mood": "frown"
+            }
+          ]
+        }
+      ],
+      "cam": {
+        "pos": [
+          -20.8,
+          1.6,
+          0.9
+        ],
+        "look": [
+          -22,
+          1.6,
+          5.2
+        ]
+      },
+      "line": 6
+    },
+    {
+      "set": "kota",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            9.5,
+            3.3
+          ],
+          "face": "parkir",
+          "pose": "think",
+          "mood": "neutral"
+        },
+        {
+          "who": "parkir",
+          "at": [
+            10.9,
+            3.5
+          ],
+          "face": "raka",
+          "mood": "smile"
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.2,
+          1.6,
+          -1.8
+        ],
+        "look": [
+          10.2,
+          1.3,
+          3.4
+        ]
+      },
+      "line": 7
+    },
+    {
+      "set": "kota",
+      "title": "TANYA LAGI",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            9.5,
+            3.3
+          ],
+          "face": "parkir",
+          "pose": "think",
+          "mood": "frown"
+        },
+        {
+          "who": "parkir",
+          "at": [
+            10.9,
+            3.5
+          ],
+          "face": "camera",
+          "mood": "grin",
+          "pose_at": [
+            {
+              "word": "lurus",
+              "pose": "point_fwd"
+            },
+            {
+              "word": "kiri",
+              "pose": "point_l"
+            },
+            {
+              "word": "kanan",
+              "pose": "point_r"
+            },
+            {
+              "word": "tanya",
+              "pose": "shrug"
+            }
+          ]
+        }
+      ],
+      "cam": {
+        "pos": [
+          10.4,
+          1.6,
+          -1.5
+        ],
+        "look": [
+          10.4,
+          1.3,
+          3.4
+        ]
+      },
+      "line": 8
+    },
+    {
+      "set": "interior",
+      "title": "NGOBROL?!",
+      "title_word": "ngobrol",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            42,
+            -1.2
+          ],
+          "face": 0,
+          "pose": "awkward",
+          "mood": "neutral"
+        },
+        {
+          "who": "teman1",
+          "at": [
+            41.2,
+            -0.3
+          ],
+          "face": "meja",
+          "pose": "awkward",
+          "mood": "neutral"
+        },
+        {
+          "who": "teman2",
+          "at": [
+            42.8,
+            -0.3
+          ],
+          "face": "meja",
+          "pose": "awkward",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          42.4,
+          2.5,
+          2.8
+        ],
+        "look": [
+          42,
+          0.95,
+          -0.5
+        ]
+      },
+      "line": 9
+    },
+    {
+      "set": "interior",
+      "title": "JEMPOL BINGUNG",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            28,
+            -2.35
+          ],
+          "y": 0.03,
+          "sit": true,
+          "face": 0,
+          "pose": "scroll",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          29.5,
+          1.5,
+          -0.4
+        ],
+        "look": [
+          28,
+          1.2,
+          -2.3
+        ]
+      },
+      "line": 10
+    },
+    {
+      "set": "interior",
+      "title": "MESIN FAKS",
+      "events": [
+        {
+          "type": "grow",
+          "target": "faks",
+          "ease": "linear"
+        }
+      ],
+      "cam": {
+        "pos": [
+          30.5,
+          1.45,
+          -0.7
+        ],
+        "look": [
+          31.3,
+          0.85,
+          -2.3
+        ]
+      },
+      "line": 11
+    },
+    {
+      "set": "interior",
+      "title": "UDAH BERES?!",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            28,
+            -2.35
+          ],
+          "y": 0.03,
+          "sit": true,
+          "face": 0,
+          "pose": "hands_head",
+          "mood": "shock"
+        }
+      ],
+      "cam": {
+        "pos": [
+          28.6,
+          1.5,
+          1.2
+        ],
+        "look": [
+          28,
+          1.65,
+          -2.6
+        ]
+      },
+      "line": 12
+    },
+    {
+      "set": "kota",
+      "title": "KENALAN LANGSUNG",
+      "cast": [
+        {
+          "who": "cewek",
+          "at": [
+            -13.6,
+            4.3
+          ],
+          "face": "camera",
+          "mood": "smile"
+        },
+        {
+          "who": "raka",
+          "at": [
+            -9.6,
+            3.9
+          ],
+          "walk_to": [
+            -12.5,
+            4.0
+          ],
+          "pose": "nervous",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -10.4,
+          1.6,
+          1.0
+        ],
+        "look": [
+          -12.6,
+          1.3,
+          4.3
+        ]
+      },
+      "line": 13
+    },
+    {
+      "set": "kota",
+      "title": "DUA MINGGU",
+      "title_word": "dua",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            -9.9,
+            3.7
+          ],
+          "face": "pos",
+          "pose": "hold_out",
+          "item": "surat",
+          "mood": "smile"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -8.7,
+          1.6,
+          0.4
+        ],
+        "look": [
+          -9.6,
+          1.2,
+          4.0
+        ]
+      },
+      "line": 14
+    },
+    {
+      "set": "ilustrasi",
+      "line": 14,
+      "at_word": "tunggu",
+      "illustration": "kalender",
+      "from": 1,
+      "to": 14,
+      "month": "MARET 1995"
+    },
+    {
+      "set": "interior",
+      "line": 15,
+      "offset": -1.3,
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            13.3,
+            -1.7
+          ],
+          "pose": "phone",
+          "item": "gagang",
+          "mood": "smile"
+        }
+      ],
+      "cam": {
+        "pos": [
+          13.9,
+          1.6,
+          0.9
+        ],
+        "look": [
+          13.3,
+          1.4,
+          -1.6
+        ]
+      }
+    },
+    {
+      "set": "interior",
+      "title": "INI SIAPA?",
+      "cast": [
+        {
+          "who": "bapak",
+          "at": [
+            3.4,
+            -2.3
+          ],
+          "face": "camera",
+          "pose": "phone",
+          "item": "gagang",
+          "mood": "frown"
+        }
+      ],
+      "cam": {
+        "pos": [
+          3.2,
+          1.75,
+          -0.4
+        ],
+        "look": [
+          3.4,
+          1.6,
+          -2.3
+        ]
+      },
+      "line": 15
+    },
+    {
+      "set": "interior",
+      "line": 15,
+      "at_word": "apa",
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            13.3,
+            -1.7
+          ],
+          "pose": "press",
+          "mood": "shock"
+        }
+      ],
+      "cam": {
+        "pos": [
+          13.9,
+          1.6,
+          0.9
+        ],
+        "look": [
+          13.3,
+          1.2,
+          -1.4
+        ]
+      }
+    },
+    {
+      "set": "interior",
+      "title": "CUMA MIMPI",
+      "hide": [
+        "kalender"
+      ],
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            -1.9,
+            -2.0
+          ],
+          "y": 0.12,
+          "sit": true,
+          "pose": "hp",
+          "item": "hp",
+          "mood": "smile"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -1.3,
+          1.3,
+          0.7
+        ],
+        "look": [
+          -1.9,
+          1.0,
+          -2.0
+        ]
+      },
+      "line": 16
+    },
+    {
+      "set": "ilustrasi",
+      "line": 17,
+      "offset": -2.8,
+      "title": "",
+      "illustration": "post_sosmed",
+      "likes": 3,
+      "user": "raka",
+      "text": "gue habis hidup di tahun 90-an"
+    },
+    {
+      "set": "interior",
+      "title": "BALIKIN!",
+      "hide": [
+        "kalender"
+      ],
+      "cast": [
+        {
+          "who": "raka",
+          "at": [
+            -1.9,
+            -2.0
+          ],
+          "y": 0.12,
+          "sit": true,
+          "face": "camera",
+          "pose": "hp",
+          "item": "hp",
+          "mood": "neutral"
+        }
+      ],
+      "cam": {
+        "pos": [
+          -1.85,
+          1.42,
+          0.7
+        ],
+        "look": [
+          -1.9,
+          1.25,
+          -2.0
+        ]
+      },
+      "line": 17
+    }
+  ]
+}

@@ -37,6 +37,16 @@ function poseArms(pose, t) {
     case 'struggle': return { armL: [-2.2 + Math.sin(t * 11) * 0.5, 0, 0.7], armR: [-2.2 - Math.sin(t * 11) * 0.5, 0, -0.7], look: [Math.sin(t * 5) * 0.3, 0] };
     case 'panic': return { armL: [0, 0, 2.7], armR: [0, 0, -2.7], look: [Math.sin(t * 9) * 0.25, 0] };
     case 'hug': return { armL: [-1.35, 0, -0.55], armR: [-1.35, 0, 0.55], look: [0, 0.1] };
+    case 'grope': return { armR: [-1.1 + Math.sin(t * 6) * 0.3, 0, 0.3], armL: [-0.7, 0, -0.2], look: [0.35, 0.3] };
+    case 'press': return { armR: [-1.05, 0, 0.2], look: [0, 0.3] };
+    case 'scroll': return { armR: [-1.95 + Math.sin(t * 9) * 0.1, 0, 0.35], look: [0, 0.12] };
+    case 'phone': return { armR: [-2.5, 0, 0.55], look: [0.15, 0] };
+    case 'hp': return { armR: [-1.25, 0, 0.3], look: [0, 0.28] };
+    case 'point_fwd': return { armR: [-1.55, 0, -0.05] };
+    case 'point_r': return { armR: [-0.1, 0, -1.55] };
+    case 'point_l': return { armL: [-0.1, 0, 1.55] };
+    case 'awkward': return { armL: [-0.15, 0, -0.05], armR: [-0.15, 0, 0.05], look: [0, 0.32] };
+    case 'nervous': return { armL: [-0.5, 0, -0.35], armR: [-0.5, 0, 0.35], look: [Math.sin(t * 3) * 0.2, 0.15] };
     case 'thirsty': return { armL: [0.1, 0, 0.05], armR: [0.1, 0, -0.05], look: [0, 0.35] };
     default: return {};
   }
@@ -109,6 +119,7 @@ export async function createStory(canvas, base, opts = {}) {
       : [{ x: p.x, z: p.z, r: p.clear ?? ({ fruit_tree: 4.5, wallow: (p.r || 2.2) + 2.5, thicket: (p.r || 3) + 1.5 }[p.type] || 2.5) }]);
     SETS.hutan = K.forestSet([{ x: 0, z: 0, r: 7 }, ...keep, ...(spec.world?.clear || [])]);
   }
+  if (usedSets.has('interior')) SETS.interior = K.interiorSet();
   if (usedSets.has('ilustrasi')) SETS.ilustrasi = { scene: new THREE.Scene(), flat: true };
   const setOf = (i) => scenes[i].set || spec.world?.set || 'sawah';
 
@@ -122,6 +133,13 @@ export async function createStory(canvas, base, opts = {}) {
     else if (p.type === 'angkot') { o = K.angkot(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
     else if (p.type === 'motor') { o = K.motorbike(scene, { color: p.color }); o.obj.position.set(p.x, 0.06, p.z); o.obj.rotation.y = p.rot || 0; }
     else if (p.type === 'flat_rock') o = K.flatRock(scene, p.x, p.z);
+    else if (['bed', 'radio', 'calendar', 'landline', 'tv', 'desk', 'fax', 'wall_clock', 'cafe_table', 'post_box', 'cafe_front'].includes(p.type)) {
+      o = { bed: () => K.bed(scene), radio: () => K.radio(scene), calendar: () => K.wallCalendar(scene, p), landline: () => K.landline(scene),
+        tv: () => K.crtTV(scene, p), desk: () => K.officeDesk(scene), fax: () => K.faxMachine(scene), wall_clock: () => K.wallClock(scene, p),
+        cafe_table: () => K.cafeTable(scene, p), post_box: () => K.postBox(scene), cafe_front: () => K.cafeFront(scene, p) }[p.type]();
+      o.obj.position.set(p.x, p.y || 0, p.z); o.obj.rotation.y = p.rot || 0; if (p.scale) o.obj.scale.setScalar(p.scale);
+      o.grows = !!o.update;
+    }
     else if (['fruit_tree', 'seedlings', 'dung', 'wallow', 'path', 'thicket', 'sandal', 'ranger_hat'].includes(p.type)) {
       o = p.type === 'fruit_tree' ? K.fruitTree(scene) : p.type === 'seedlings' ? K.seedlings(scene) : p.type === 'dung' ? K.dung(scene)
         : p.type === 'wallow' ? K.wallow(scene, { r: p.r || 2.2 }) : p.type === 'path' ? K.footpath(scene, { length: p.length || 24 })
@@ -164,7 +182,7 @@ export async function createStory(canvas, base, opts = {}) {
       : ['badak', 'rusa', 'babi', 'kancil'].includes(c.type) ? K.beast(scene, { kind: c.type, color: c.color, bucket: !!c.bucket, map: !!c.map })
       : c.type === 'rangkong' ? K.hornbill(scene, { bucket: !!c.bucket })
       : K.character(scene, { shirt, sarong, hat: c.hat || null, mustache: !!c.mustache, blush: !!c.blush,
-        hair: c.hair, whistle: !!c.whistle, baby: !!c.baby, capColor: c.capColor });
+        hair: c.hair, hairLong: c.hairLong, whistle: !!c.whistle, baby: !!c.baby, capColor: c.capColor });
     ch.type = c.type || 'person';
     ch.sack = K.sack(scene); ch.sack.visible = false;
     chars[id] = ch;
@@ -350,7 +368,8 @@ export async function createStory(canvas, base, opts = {}) {
       let k = o.spec.hidden ? 0 : 1;
       if (ap) k = E.outBack(prog(t, ap.at + 0.3, ap.at + 0.8), 1.8);
       if (dis && (!ap || dis.at >= ap.at)) k = 0;
-      o.obj.visible = k > 0.001; o.obj.scale.setScalar(Math.max(0.001, k));
+      if ((scenes[sc].hide || []).includes(o.id)) k = 0;
+      o.obj.visible = k > 0.001; o.obj.scale.setScalar(Math.max(0.001, k) * (o.spec.scale || 1));
       if (o.grows) o.update(t, growK(o.id, t));
       if (o.spec.type === 'scarecrow') {
         const r = eventsUpTo(t, 'raise').filter((e) => e.target === o.id).pop();
@@ -424,7 +443,7 @@ export async function createStory(canvas, base, opts = {}) {
       if (ch.obj.parent !== SETS[active].scene) SETS[active].scene.add(ch.obj);
       if (ch.hat) ch.hat.visible = c0visible(cast[ci], t, sc);
       if (ch.sack.parent !== SETS[active].scene) SETS[active].scene.add(ch.sack);
-      const c = cast[ci];
+      let c = cast[ci];
       let p = castPos(c, ci, t, sc);
       let y = castY(c, p.z, sc);
       let rideRot = null;
@@ -464,6 +483,11 @@ export async function createStory(canvas, base, opts = {}) {
         const o = props[c.face]?.obj.position || (() => { const oc = cast.find((x) => x.who === c.face); const op = oc ? castPos(oc, cast.indexOf(oc), t, sc) : { x: 0, z: 0 }; return V(op.x, 0, op.z); })();
         rot = Math.atan2(o.x - p.x, o.z - p.z);
       } else rot = Math.atan2(cam.position.x - p.x, cam.position.z - p.z) * 0.85;   // 'camera' (default)
+      if (c.pose_at) {                            // change pose on spoken words: [{word, pose}]
+        const hit = c.pose_at.filter((q) => t >= wordTime(sc, q.word, q.at)).pop();
+        if (hit) c = { ...c, pose: hit.pose, mood: hit.mood || c.mood };
+      }
+      if (ch.hold) ch.hold(c.item || null);
       const carry = c.pose === 'carry';
       if (ch.animal) {
         ch.pose(t, { x: p.x, y, z: p.z, rot, mode: p.walking ? 'walk' : (c.mode || 'idle'), mood: c.mood || 'smile' });
@@ -486,7 +510,7 @@ export async function createStory(canvas, base, opts = {}) {
       }
       ch.pose(t, { x: p.x, y, z: p.z, rot, walk: p.walking, mood: c.mood || 'smile', hold: carry ? 1 : 0, sit: c.ride || c.sit ? 1 : 0, ...poseArms(c.pose || (c.ride && props[c.ride]?.spec.type === 'motor' && c.seat !== 'belakang' ? 'ride' : null), t) });
       if (c.pose === 'struggle') { ch.root.rotation.z = Math.sin(t * 10) * 0.07; ch.root.position.x += Math.sin(t * 13) * 0.03; } else ch.root.rotation.z = 0;
-      if (c.pose === 'lying') { ch.root.rotation.set(0, 0, Math.PI / 2); ch.root.position.set(p.x + 0.95, y + 0.78, p.z); }
+      if (c.pose === 'lying' || c.lying) { ch.root.rotation.set(0, 0, Math.PI / 2); ch.root.position.set(p.x + 0.95, y + 0.78, p.z); }
       if (carry) {
         ch.sack.visible = true;
         ch.sack.position.set(p.x + Math.sin(rot) * 0.38, y + 0.44, p.z + Math.cos(rot) * 0.38);
@@ -776,6 +800,61 @@ export async function createStory(canvas, base, opts = {}) {
       ctx.strokeStyle = '#FF5A3C'; ctx.lineWidth = 6; ctx.stroke(); ctx.fillStyle = '#FFFFFF'; ctx.fillText(txt, 0, 4);
       ctx.restore();
     }
+  };
+
+  // desk calendar flipping days (n0 -> n1)
+  ILLUS_EXTRA.kalender = (p, t, s2) => {
+    const u = Math.min(W, H) / 1080;
+    ctx.fillStyle = '#F3E3C3'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(160,110,60,0.08)'; for (let i = 0; i < 50; i++) ctx.fillRect((hash01(i, 5) * W) | 0, (hash01(i, 6) * H) | 0, 8, 8);
+    const n0 = s2.from ?? 1, n1 = s2.to ?? 14;
+    const q = E.inOutSine(prog(p, 0.08, 0.8)), f = n0 + (n1 - n0) * q, day = Math.floor(f), frac = f - day;
+    const cx = W / 2, cy = H * (LAND ? 0.5 : 0.46), w = 520 * u, h = 600 * u;
+    const page = (n, lift) => {
+      ctx.save(); ctx.translate(cx, cy - h / 2);
+      ctx.scale(1, Math.cos(lift * Math.PI * 0.5)); ctx.translate(0, 0);
+      ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.roundRect(-w / 2, 0, w, h, 24 * u); ctx.fill();
+      ctx.fillStyle = '#C0392B'; ctx.beginPath(); ctx.roundRect(-w / 2, 0, w, 150 * u, [24 * u, 24 * u, 0, 0]); ctx.fill();
+      ctx.fillStyle = '#FFFFFF'; ctx.font = `800 ${74 * u}px Display`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(s2.month || 'MARET 1995', 0, 78 * u);
+      ctx.fillStyle = n % 7 === 0 ? '#C0392B' : '#2E2E2E'; ctx.font = `800 ${300 * u}px Display`; ctx.fillText(String(Math.min(n, n1)), 0, 380 * u);
+      ctx.restore();
+    };
+    page(Math.min(n1, day + 1), 0);
+    if (day < n1) page(day, frac);
+    ctx.fillStyle = '#5A3B24'; [-1, 1].forEach((d) => { ctx.beginPath(); ctx.roundRect(cx + d * 150 * u - 14 * u, cy - h / 2 - 30 * u, 28 * u, 60 * u, 10 * u); ctx.fill(); });
+  };
+  // a generic social post on a phone; likes count up and stop at s2.likes
+  ILLUS_EXTRA.post_sosmed = (p, t, s2) => {
+    const u = Math.min(W, H) / 1080;
+    ctx.fillStyle = '#20232B'; ctx.fillRect(0, 0, W, H);
+    const pw = 640 * u, ph = 1160 * u, cx = W / 2, cy = H * 0.5, big = LAND ? 0.8 : 1.3;
+    const k = E.outBack(prog(p, 0, 0.12), 1.4);
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(k * big, k * big);
+    ctx.fillStyle = '#0E0F12'; ctx.beginPath(); ctx.roundRect(-pw / 2 - 24 * u, -ph / 2 - 24 * u, pw + 48 * u, ph + 48 * u, 70 * u); ctx.fill();
+    ctx.fillStyle = '#FAFAFA'; ctx.beginPath(); ctx.roundRect(-pw / 2, -ph / 2, pw, ph, 50 * u); ctx.fill();
+    const x0 = -pw / 2 + 40 * u, y0 = -ph / 2 + 110 * u;
+    ctx.fillStyle = '#E85D75'; ctx.beginPath(); ctx.arc(x0 + 40 * u, y0 + 40 * u, 40 * u, 0, M.TAU); ctx.fill();
+    ctx.fillStyle = '#FFFFFF'; ctx.font = `800 ${40 * u}px Display`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('R', x0 + 40 * u, y0 + 42 * u);
+    ctx.textAlign = 'left'; ctx.fillStyle = '#1E1B19'; ctx.font = `800 ${38 * u}px Display`; ctx.fillText(s2.user || 'raka', x0 + 100 * u, y0 + 28 * u);
+    ctx.fillStyle = '#8A8A8A'; ctx.font = `${28 * u}px sans-serif`; ctx.fillText(s2.ago || 'baru saja', x0 + 100 * u, y0 + 66 * u);
+    // post text, wrapped
+    ctx.fillStyle = '#1E1B19'; ctx.font = `800 ${46 * u}px Display`;
+    const words = (s2.text || 'gue habis hidup di tahun 90-an').split(' '); let line = '', ly = y0 + 160 * u;
+    words.forEach((w2) => { const tl = line ? line + ' ' + w2 : w2; if (ctx.measureText(tl).width > pw - 80 * u) { ctx.fillText(line, x0, ly); line = w2; ly += 58 * u; } else line = tl; }); ctx.fillText(line, x0, ly);
+    // picture: a cassette
+    const iy = ly + 50 * u, iw = pw - 80 * u, ih = 380 * u;
+    ctx.fillStyle = '#F2C14E'; ctx.beginPath(); ctx.roundRect(x0, iy, iw, ih, 24 * u); ctx.fill();
+    ctx.fillStyle = '#2E2E2E'; ctx.beginPath(); ctx.roundRect(x0 + 60 * u, iy + 70 * u, iw - 120 * u, ih - 140 * u, 20 * u); ctx.fill();
+    ctx.fillStyle = '#F4F1EA'; [-1, 1].forEach((d) => { ctx.beginPath(); ctx.arc(x0 + iw / 2 + d * 110 * u, iy + ih / 2, 46 * u, 0, M.TAU); ctx.fill(); });
+    ctx.fillStyle = '#2E2E2E'; [-1, 1].forEach((d) => { ctx.save(); ctx.translate(x0 + iw / 2 + d * 110 * u, iy + ih / 2); ctx.rotate(t * 3); for (let i = 0; i < 6; i++) { ctx.rotate(M.TAU / 6); ctx.fillRect(-4 * u, 20 * u, 8 * u, 22 * u); } ctx.restore(); });
+    // likes
+    const likes = Math.min(s2.likes ?? 3, Math.floor(prog(p, 0.2, 0.45) * ((s2.likes ?? 3) + 0.99)));
+    const hy = iy + ih + 80 * u;
+    ctx.fillStyle = likes > 0 ? '#E8364F' : '#BBBBBB';
+    ctx.save(); ctx.translate(x0 + 34 * u, hy); const hb = likes > 0 ? 1 + 0.25 * Math.max(0, 1 - ((p - 0.2) * 20 % 1)) * (p < 0.46 ? 1 : 0) : 1; ctx.scale(hb * u, hb * u);
+    ctx.beginPath(); ctx.moveTo(0, 14); ctx.bezierCurveTo(-34, -10, -18, -38, 0, -18); ctx.bezierCurveTo(18, -38, 34, -10, 0, 14); ctx.fill(); ctx.restore();
+    ctx.fillStyle = '#1E1B19'; ctx.font = `800 ${44 * u}px Display`; ctx.textBaseline = 'middle'; ctx.fillText(`${likes} suka`, x0 + 80 * u, hy + 2 * u);
+    ctx.restore();
   };
 
   function drawFreeze(t, sc) {
