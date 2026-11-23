@@ -296,7 +296,7 @@ export function grade(ctx, W, H, frame, { warm = 0.35, vignette = 0.55, grain = 
   const vg = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.3, W / 2, H * 0.5, Math.max(W, H) * 0.62); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, `rgba(25,12,5,${vignette})`);
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   if (!NOISE.length) for (let k = 0; k < 4; k++) { const n = document.createElement('canvas'); n.width = n.height = 256; const nc = n.getContext('2d'); const id = nc.createImageData(256, 256); for (let i = 0; i < id.data.length; i += 4) { const v = (M.hash01(i + k * 99991, 7) * 255) | 0; id.data[i] = id.data[i + 1] = id.data[i + 2] = v; id.data[i + 3] = 255; } nc.putImageData(id, 0, 0); NOISE.push(n); }
-  ctx.globalAlpha = grain; ctx.globalCompositeOperation = 'overlay'; ctx.fillStyle = ctx.createPattern(NOISE[frame % 4], 'repeat'); ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = grain; ctx.globalCompositeOperation = 'overlay'; ctx.fillStyle = ctx.createPattern(NOISE[Math.floor(frame / 2) % 4], 'repeat'); ctx.fillRect(0, 0, W, H);
   ctx.restore();
 }
 // cheap lens blur of a canvas into ctx: shrink then enlarge

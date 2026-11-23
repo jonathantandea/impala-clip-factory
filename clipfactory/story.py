@@ -123,6 +123,9 @@ def _tts(text: str, vid: str, language: str, settings: dict | None = None) -> di
         msg = e.read().decode(errors="replace")[:300]
         if e.code == 401:
             raise ValueError("API key ElevenLabs ditolak (cek lagi key-nya)") from e
+        if "paid_plan_required" in msg or "library voices" in msg:
+            raise ValueError("suara ini dari Voice Library ElevenLabs: lewat API hanya bisa dipakai paket berbayar "
+                             "(Starter ke atas). Upgrade paket, atau pakai suara bawaan (brian, sarah, ...).") from e
         if "quota" in msg.lower() or e.code == 402:
             raise ValueError("kuota ElevenLabs habis bulan ini (free tier 10.000 karakter/bulan)") from e
         raise ValueError(f"ElevenLabs error {e.code}: {msg}") from e

@@ -1,7 +1,7 @@
 {
   "title": "Kipas Angin Pak Darto",
   "style": "flat",
-  "voice": "brian",
+  "voice": "aJiaMo73BheNakP6EPev",
   "voice_settings": {
     "speed": 1.08
   },
@@ -511,5 +511,8 @@
         ]
       }
     }
-  ]
+  ],
+  "grade": {
+    "grain": 0.035
+  }
 }
