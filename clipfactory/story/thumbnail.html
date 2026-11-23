@@ -1,0 +1,77 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Thumbnail</title>
+<style>body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="1280" height="720"></canvas>
+<script type="module">
+// YouTube thumbnails for the documentary look. ?v=a|b|c
+const v = new URLSearchParams(location.search).get('v') || 'a';
+const W = 1280, H = 720, c = document.getElementById('c'), x = c.getContext('2d');
+const T = { ink: '#0C1117', sea: '#13202B', land: '#232B33', parch: '#ECE2CC', dim: '#8A9099', gold: '#C9A45C', mace: '#D0552B', atl: '#6FA3C7' };
+for (const [fam, f, w, st] of [['Lora', 'lora-700.woff2', '700', 'normal'], ['Lora', 'lora-600i.woff2', '600', 'italic'], ['Poppins', 'poppins-800.woff2', '800', 'normal'], ['Poppins', 'poppins-600.woff2', '600', 'normal']]) {
+  const ff = new FontFace(fam, `url(/story/fonts/${f})`, { weight: w, style: st }); await ff.load(); document.fonts.add(ff);
+}
+const banda = await fetch('/story/geo/banda.json').then((r) => r.json());
+const merc = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) * 180 / Math.PI;
+const proj = (lon0, lat0, zoom, cx, cy) => (lon, lat) => [cx + (lon - lon0) * zoom, cy - (merc(lat) - merc(lat0)) * zoom];
+function bg() {
+  const g = x.createRadialGradient(W * 0.38, H * 0.5, 0, W * 0.5, H * 0.5, W * 0.8); g.addColorStop(0, '#16293A'); g.addColorStop(1, T.ink); x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.strokeStyle = 'rgba(201,164,92,0.07)'; x.lineWidth = 1; for (let i = 0; i < W; i += 64) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let j = 0; j < H; j += 64) { x.beginPath(); x.moveTo(0, j); x.lineTo(W, j); x.stroke(); }
+}
+function island(P, ring, fill, stroke, glow, lw = 3) {
+  x.beginPath(); ring.forEach(([a, b], i) => { const [px, py] = P(a, b); i ? x.lineTo(px, py) : x.moveTo(px, py); }); x.closePath();
+  x.save(); if (glow) { x.shadowColor = glow; x.shadowBlur = 50; } x.fillStyle = fill; x.fill(); x.restore();
+  x.lineWidth = lw; x.strokeStyle = stroke; x.stroke();
+}
+function text(s, px, py, font, col, align = 'left', stroke = 0) {
+  x.font = font; x.textAlign = align; x.textBaseline = 'alphabetic';
+  if (stroke) { x.lineJoin = 'round'; x.lineWidth = stroke; x.strokeStyle = 'rgba(8,10,14,0.9)'; x.strokeText(s, px, py); }
+  x.fillStyle = col; x.fillText(s, px, py);
+}
+function skyline(px, py, s, col) {           // generic city silhouette (no real building likeness)
+  x.save(); x.translate(px, py); x.scale(s, s); x.fillStyle = col;
+  const b = [[0, 90], [26, 150], [50, 120], [74, 230], [92, 300], [104, 230], [122, 170], [150, 260], [176, 140], [200, 200], [222, 110], [248, 160], [270, 80]];
+  b.forEach(([bx, bh], i) => { const w = 22; x.fillRect(bx, -bh, w, bh); if (i === 4) { x.beginPath(); x.moveTo(bx + 4, -bh); x.lineTo(bx + 11, -bh - 50); x.lineTo(bx + 18, -bh); x.fill(); } });
+  x.fillStyle = 'rgba(255,230,160,0.55)'; b.forEach(([bx, bh], i) => { for (let yy = 16; yy < bh - 10; yy += 20) for (let xx = 4; xx < 18; xx += 8) if ((i * 7 + yy + xx) % 3) x.fillRect(bx + xx, -bh + yy, 4, 7); });
+  x.restore();
+}
+function nutmeg(px, py, s) {
+  x.save(); x.translate(px, py); x.scale(s, s);
+  const g = x.createRadialGradient(-20, -24, 6, 0, 0, 90); g.addColorStop(0, '#A9744A'); g.addColorStop(1, '#4A2E1A'); x.fillStyle = g; x.beginPath(); x.ellipse(0, 0, 70, 82, 0, 0, 7); x.fill();
+  x.strokeStyle = T.mace; x.lineWidth = 10; x.lineCap = 'round'; x.shadowColor = T.mace; x.shadowBlur = 18;
+  for (let i = 0; i < 7; i++) { x.beginPath(); const a0 = -1.4 + i * 0.45; x.moveTo(Math.cos(a0) * 20, -80); x.bezierCurveTo(Math.cos(a0) * 90, -40 + i * 6, Math.cos(a0 + 0.6) * 85, 30, Math.cos(a0 + 0.3) * 30 * (i % 2 ? 1 : -1), 78); x.stroke(); }
+  x.restore();
+}
+function badge(s, px, py, col) { x.font = '800 30px Poppins'; const w = x.measureText(s).width + 36; x.fillStyle = col; x.beginPath(); x.roundRect(px, py, w, 52, 10); x.fill(); x.fillStyle = T.ink; x.textAlign = 'left'; x.fillText(s, px + 18, py + 37); }
+function vignette() { const g = x.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, W * 0.75); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)'); x.fillStyle = g; x.fillRect(0, 0, W, H); }
+
+bg();
+if (v === 'a') {
+  // Run glowing on the left, the question on the right, a dashed arc to a city skyline
+  const P = proj(129.683, -4.554, 9000, 330, 380);
+  island(P, banda.run, T.mace, '#F2A07A', T.mace, 4);
+  x.save(); x.setLineDash([16, 14]); x.lineWidth = 4; x.strokeStyle = T.gold; x.beginPath(); x.moveTo(470, 300); x.quadraticCurveTo(820, 40, 1120, 330); x.stroke(); x.restore();
+  skyline(1000, 720, 0.95, '#1B3349');
+  text('DITUKAR', 590, 390, '700 128px Lora', T.parch, 'left', 14);
+  text('MANHATTAN?', 596, 488, '800 74px Poppins', T.atl, 'left', 12);
+  badge('3 KM', 230, 520, T.gold);
+} else if (v === 'b') {
+  // tiny island vs a giant city: scale contrast + "lebih diperebutkan"
+  const P = proj(129.683, -4.554, 4200, 250, 420);
+  island(P, banda.run, T.mace, '#F2A07A', T.mace, 3);
+  text('3 km', 250, 560, '700 54px Lora', T.parch, 'center', 8);
+  skyline(760, 700, 1.75, '#24435E');
+  text('VS', 520, 440, '800 96px Poppins', T.gold, 'center', 12);
+  text('Lebih diperebutkan', 640, 120, '700 72px Lora', T.parch, 'center', 12);
+  text('dari New York?', 640, 205, '600 64px Lora', T.atl, 'center', 10);
+  x.font = '600 64px Lora'; // reset
+} else {
+  // nutmeg as the hero: "lebih mahal dari emas" + island
+  nutmeg(330, 380, 2.6);
+  const P = proj(129.683, -4.554, 3600, 1070, 560); island(P, banda.run, T.mace, '#F2A07A', T.mace, 3);
+  text('Pulau Run', 1070, 640, '700 34px Lora', T.parch, 'center', 6);
+  text('LEBIH MAHAL', 620, 300, '800 92px Poppins', T.parch, 'left', 12);
+  text('dari emas', 624, 400, '600 96px Lora', T.gold, 'left', 12);
+}
+vignette();
+window.READY = true;
+</script></body></html>
