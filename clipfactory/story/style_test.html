@@ -1,0 +1,227 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Style test</title>
+<!-- Prototype: 2-D outlined puppets in a textured 3-D warung, lens blur, warm grade. Open /story/style_test.html?shot=a|b|c -->
+<style>@font-face { font-family: Display; src: url(fonts/display.woff2) format('woff2'); font-weight: 800; } body{margin:0;background:#111}</style>
+<script type="importmap">{ "imports": { "three": "/story/vendor/three/build/three.module.js", "three/addons/": "/story/vendor/three/examples/jsm/" } }</script>
+</head><body><canvas id="out"></canvas>
+<script type="module">
+import * as THREE from 'three';
+const q = new URLSearchParams(location.search);
+const SHOT = q.get('shot') || 'a';
+const W = 1080, H = 1920;
+await document.fonts.load('800 84px Display');
+const out = document.getElementById('out'); out.width = W; out.height = H;
+const ctx = out.getContext('2d');
+const glc = document.createElement('canvas'); glc.width = W; glc.height = H;
+const R = new THREE.WebGLRenderer({ canvas: glc, antialias: true, alpha: true, preserveDrawingBuffer: true });
+R.setPixelRatio(1); R.setSize(W, H, false); R.outputColorSpace = THREE.SRGBColorSpace;
+R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// ------------------------------------------------------------ helpers
+const rnd = (() => { let s = 7; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+function tex(w, h, paint, rep = [1, 1]) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; paint(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...rep); t.anisotropy = 8; return t;
+}
+const grime = (c, w, h, n, col, rmin, rmax, a = 0.15) => { for (let i = 0; i < n; i++) { const r = rmin + rnd() * (rmax - rmin); const g = c.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, col.replace('A', a)); g.addColorStop(1, col.replace('A', 0)); c.save(); c.translate(rnd() * w, rnd() * h); c.scale(1, 0.4 + rnd()); c.fillStyle = g; c.beginPath(); c.arc(0, 0, r, 0, 7); c.fill(); c.restore(); } };
+const WOOD = tex(512, 512, (c, w, h) => {
+  c.fillStyle = '#6B4128'; c.fillRect(0, 0, w, h);
+  for (let p = 0; p < 4; p++) { const y0 = p * h / 4; c.fillStyle = ['#704430', '#633A24', '#76492E', '#5E3722'][p]; c.fillRect(0, y0, w, h / 4);
+    for (let i = 0; i < 30; i++) { c.strokeStyle = `rgba(40,20,10,${0.15 + rnd() * 0.25})`; c.lineWidth = 1 + rnd() * 2; c.beginPath(); const yy = y0 + rnd() * h / 4; c.moveTo(0, yy); for (let x = 0; x <= w; x += 32) c.lineTo(x, yy + Math.sin(x * 0.02 + i) * 3 + (rnd() - 0.5) * 2); c.stroke(); }
+    c.fillStyle = 'rgba(20,10,5,0.7)'; c.fillRect(0, y0, w, 4); }
+  grime(c, w, h, 40, 'rgba(30,15,5,A)', 20, 80, 0.25); grime(c, w, h, 20, 'rgba(255,220,180,A)', 10, 40, 0.08);
+});
+const BRICK = tex(512, 512, (c, w, h) => {
+  c.fillStyle = '#6E5A4E'; c.fillRect(0, 0, w, h);
+  const bw = 128, bh = 48;
+  for (let r = 0; r < h / bh; r++) for (let k = -1; k < w / bw + 1; k++) {
+    const x = k * bw + (r % 2) * bw / 2, y = r * bh; const v = rnd();
+    c.fillStyle = `rgb(${150 + v * 40},${92 + v * 30},${74 + v * 20})`; c.fillRect(x + 4, y + 4, bw - 8, bh - 8);
+    c.fillStyle = 'rgba(0,0,0,0.12)'; c.fillRect(x + 4, y + bh - 12, bw - 8, 8);
+  }
+  grime(c, w, h, 60, 'rgba(40,30,25,A)', 20, 90, 0.3);
+}, [4, 4]);
+const WALL = tex(1024, 1024, (c, w, h) => {
+  c.fillStyle = '#C8B48C'; c.fillRect(0, 0, w, h);                    // plaster
+  c.fillStyle = '#5FA494'; c.fillRect(0, 0, w, h);                    // teal paint
+  for (let i = 0; i < 26; i++) {                                       // peeled patches
+    const x = rnd() * w, y = rnd() * h, r = 20 + rnd() * 70;
+    c.fillStyle = '#C9A982'; c.beginPath(); for (let a = 0; a < 6.3; a += 0.5) { const rr = r * (0.6 + rnd() * 0.6); c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.7); } c.fill();
+    c.strokeStyle = 'rgba(60,70,60,0.35)'; c.lineWidth = 2; c.stroke();
+  }
+  grime(c, w, h, 90, 'rgba(60,50,30,A)', 30, 160, 0.18);
+  for (let i = 0; i < 40; i++) { c.strokeStyle = 'rgba(70,55,35,0.25)'; c.lineWidth = 2; c.beginPath(); const x = rnd() * w; c.moveTo(x, 0); c.lineTo(x + (rnd() - 0.5) * 20, h * (0.2 + rnd() * 0.5)); c.stroke(); }
+  const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(50,40,25,0.35)'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+});
+const ZINC = tex(512, 256, (c, w, h) => {
+  for (let x = 0; x < w; x++) { const v = 0.5 + 0.5 * Math.sin(x / w * Math.PI * 16); c.fillStyle = `rgb(${120 + v * 70},${110 + v * 60},${100 + v * 50})`; c.fillRect(x, 0, 1, h); }
+  grime(c, w, h, 50, 'rgba(140,60,20,A)', 10, 60, 0.45); grime(c, w, h, 30, 'rgba(40,25,15,A)', 20, 80, 0.3);
+}, [3, 1]);
+const lam = (o) => new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, ...o });
+
+// ------------------------------------------------------------ warung set
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#E8D9B8');
+scene.add(new THREE.HemisphereLight('#FFF1D6', '#5A4030', 1.2));
+const sun = new THREE.DirectionalLight('#FFDDAA', 2.2); sun.position.set(5, 8, 7); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6 }); sun.shadow.radius = 6; scene.add(sun);
+const bulb = new THREE.PointLight('#FFC77A', 6, 7, 1.6); bulb.position.set(-0.6, 2.6, 0.2); scene.add(bulb);
+const mesh = (geo, m, x, y, z, sh = true) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = sh; o.receiveShadow = true; scene.add(o); return o; };
+const floor = mesh(new THREE.PlaneGeometry(14, 14), lam({ map: BRICK }), 0, 0, 0, false); floor.rotation.x = -Math.PI / 2;
+mesh(new THREE.BoxGeometry(9, 4.2, 0.2), lam({ map: WALL }), 0, 2.1, -2.2, false);
+// shelves with goods
+const plank = lam({ map: WOOD });
+[1.4, 2.1].forEach((y) => mesh(new THREE.BoxGeometry(3.6, 0.06, 0.4), plank, -0.2, y, -1.9));
+const goods = ['#2F6FB0', '#D9473B', '#E8B93A', '#3E8E5A', '#F2F0E8', '#8A5A3C', '#2F6FB0', '#E87A2E'];
+for (let i = 0; i < 14; i++) { const w = 0.18 + rnd() * 0.2, h = 0.2 + rnd() * 0.25; mesh(new THREE.BoxGeometry(w, h, 0.25), lam({ color: goods[i % 8] }), -1.8 + (i % 7) * 0.5 + rnd() * 0.1, (i < 7 ? 1.43 : 2.13) + h / 2, -1.85); }
+for (let i = 0; i < 6; i++) mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.22, 14), lam({ color: '#F4E6C8', transparent: true, opacity: 0.85 }), 1.0 + i * 0.18, 1.54, -1.85);
+// roof edge (zinc) overhanging at top of frame
+const roof = mesh(new THREE.PlaneGeometry(9, 2.4), lam({ map: ZINC, side: THREE.DoubleSide, metalness: 0.3, roughness: 0.6 }), 0, 3.25, 0.2); roof.rotation.x = Math.PI / 2 - 0.18;
+mesh(new THREE.BoxGeometry(9, 0.12, 0.12), plank, 0, 3.0, 1.3);
+// bulb
+mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.6, 4), lam({ color: '#222' }), -0.6, 2.95, 0.2, false);
+const bm = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 10), new THREE.MeshBasicMaterial({ color: '#FFF4D0' })); bm.position.set(-0.6, 2.62, 0.2); scene.add(bm);
+// counter (front of the warung)
+const counterTop = mesh(new THREE.BoxGeometry(3.4, 0.08, 0.9), plank, 0, 0.82, 0.6);
+const front = mesh(new THREE.BoxGeometry(3.4, 0.8, 0.06), lam({ map: WOOD }), 0, 0.4, 1.03);
+for (let i = 0; i < 4; i++) mesh(new THREE.BoxGeometry(3.42, 0.03, 0.08), lam({ color: '#3A2416' }), 0, 0.2 + i * 0.24, 1.05);
+// jeruk: green citrus with dimpled texture
+const PEEL = tex(256, 128, (c, w, h) => { c.fillStyle = '#8DB33F'; c.fillRect(0, 0, w, h); for (let i = 0; i < 900; i++) { c.fillStyle = `rgba(${rnd() < 0.5 ? '60,90,20' : '190,215,110'},0.35)`; c.beginPath(); c.arc(rnd() * w, rnd() * h, 1 + rnd() * 1.6, 0, 7); c.fill(); } grime(c, w, h, 8, 'rgba(200,200,80,A)', 10, 30, 0.3); });
+const peel = lam({ map: PEEL, roughness: 0.55 });
+const jeruk = (x, y, z, s = 1) => { const o = mesh(new THREE.SphereGeometry(0.11 * s, 24, 18), peel, x, y, z); o.scale.y = 0.92; return o; };
+// basket
+const basket = mesh(new THREE.CylinderGeometry(0.34, 0.26, 0.2, 28, 1, true), lam({ color: '#B88A4E', side: THREE.DoubleSide, map: tex(256, 64, (c, w, h) => { c.fillStyle = '#B88A4E'; c.fillRect(0, 0, w, h); c.strokeStyle = '#7A5A30'; c.lineWidth = 3; for (let x = 0; x < w; x += 10) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x + 10, h); c.stroke(); } for (let y = 0; y < h; y += 8) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); } }, [4, 1]) }), 1.05, 0.96, 0.55);
+for (let i = 0; i < 9; i++) jeruk(1.05 + Math.cos(i * 1.3) * (i ? 0.17 : 0), 1.07 + (i > 5 ? 0.08 : 0), 0.55 + Math.sin(i * 1.3) * (i ? 0.14 : 0));
+// plate with two jeruk wired up (lemon battery clock)
+const plate = mesh(new THREE.CylinderGeometry(0.26, 0.22, 0.03, 32), lam({ color: '#F2F4F6', roughness: 0.3 }), 0.25, 0.875, 0.75);
+const j1 = jeruk(0.13, 0.99, 0.75), j2 = jeruk(0.38, 0.99, 0.78);
+const WIRES = []; const wire = (pts, col) => { const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))); return WIRES.push(mesh(new THREE.TubeGeometry(curve, 40, 0.007, 6), lam({ color: col }), 0, 0, 0)); };
+wire([[0.13, 1.09, 0.75], [0.2, 1.24, 0.7], [0.3, 1.22, 0.72], [0.38, 1.09, 0.78]], '#E8B93A');
+wire([[0.07, 1.07, 0.75], [-0.1, 1.12, 0.7], [-0.32, 0.94, 0.7]], '#D9473B');
+wire([[0.44, 1.07, 0.78], [0.6, 1.12, 0.8], [0.7, 0.92, 0.8]], '#2E2E2E');
+// digital clock
+mesh(new THREE.BoxGeometry(0.36, 0.16, 0.12), lam({ color: '#F0F0EC', roughness: 0.4 }), -0.42, 0.94, 0.7);
+const LCD = tex(256, 96, (c, w, h) => { c.fillStyle = '#93A57A'; c.fillRect(0, 0, w, h); c.fillStyle = '#1E2A1A'; c.font = '800 74px monospace'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('07:00', w / 2, h / 2 + 4); });
+mesh(new THREE.PlaneGeometry(0.3, 0.11), new THREE.MeshBasicMaterial({ map: LCD }), -0.42, 0.94, 0.762, false);
+// chili plate
+mesh(new THREE.CylinderGeometry(0.2, 0.17, 0.03, 28), lam({ color: '#F2F4F6' }), -1.05, 0.875, 0.6);
+for (let i = 0; i < 18; i++) { const c = mesh(new THREE.CapsuleGeometry(0.012, 0.07, 4, 6), lam({ color: rnd() < 0.7 ? '#C8281E' : '#3E8E2A' }), -1.05 + (rnd() - 0.5) * 0.26, 0.91, 0.6 + (rnd() - 0.5) * 0.22); c.rotation.set(Math.PI / 2, 0, rnd() * 3); }
+
+// ------------------------------------------------------------ 2-D puppet (thick outline, flat cel colours)
+const INK = '#3A2214';
+function shade(hex, k) { const n = parseInt(hex.slice(1), 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v * k))); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
+function celFill(c, path, base, lightX) {          // flat base + hard-edged shadow band on the far side
+  c.save(); c.fillStyle = base; c.fill(path); c.clip(path);
+  c.fillStyle = shade(base, 0.82); c.beginPath(); c.ellipse(lightX, 0, 2000, 2000, 0, 0, 0); c.rect(lightX, -5000, 5000, 10000); c.fill();
+  c.restore(); c.lineWidth = 11; c.lineJoin = 'round'; c.strokeStyle = INK; c.stroke(path);
+}
+function puppet({ hijab = '#7A4A2E', tunic = '#58B8D8', skirt = '#E8E2D0', skin = '#E2A06A', hair = null, mood = 'smile', arm = 'down', look = 0 }) {
+  const cw = 600, ch = 1200;
+  const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; const c = cv.getContext('2d');
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  const P = () => new Path2D();
+  // skirt + feet
+  const sk = P(); sk.moveTo(190, 900); sk.lineTo(410, 900); sk.lineTo(430, 1150); sk.quadraticCurveTo(300, 1170, 170, 1150); sk.closePath();
+  celFill(c, sk, skirt, 330);
+  c.strokeStyle = shade(skirt, 0.75); c.lineWidth = 6; for (let x = 200; x < 420; x += 34) { c.beginPath(); c.moveTo(x, 910); c.lineTo(x + 6, 1140); c.stroke(); }
+  // tunic
+  const tu = P(); tu.moveTo(200, 560); tu.quadraticCurveTo(300, 530, 400, 560); tu.lineTo(440, 940); tu.quadraticCurveTo(300, 965, 160, 940); tu.closePath();
+  celFill(c, tu, tunic, 345);
+  // arms (sleeve + hand)
+  const armPath = (side, raised) => {
+    const sx = side < 0 ? 205 : 395;
+    const p = P();
+    if (raised) { p.moveTo(sx - 30 * side, 590); p.quadraticCurveTo(sx + 90 * side, 560, sx + 150 * side, 430); p.lineTo(sx + 190 * side, 450); p.quadraticCurveTo(sx + 120 * side, 640, sx + 10 * side, 690); p.closePath(); }
+    else { p.moveTo(sx - 20 * side, 585); p.quadraticCurveTo(sx + 50 * side, 620, sx + 60 * side, 840); p.lineTo(sx + 10 * side, 850); p.quadraticCurveTo(sx - 10 * side, 700, sx - 30 * side, 650); p.closePath(); }
+    celFill(c, p, tunic, side < 0 ? 9999 : sx);
+    const hx = raised ? sx + 172 * side : sx + 36 * side, hy = raised ? 420 : 870;
+    const hp = P(); hp.ellipse(hx, hy, 34, 38, 0, 0, Math.PI * 2); celFill(c, hp, skin, hx + 10);
+    if (raised) { const f = P(); f.roundRect(hx - 10, hy - 95, 22, 70, 11); celFill(c, f, skin, hx + 6); }
+  };
+  armPath(-1, false); armPath(1, arm === 'point');
+  // hijab (big rounded hood + drape over shoulders) or hair
+  if (!hair) {
+    const hj = P(); hj.moveTo(300, 90); hj.bezierCurveTo(470, 90, 520, 260, 500, 420); hj.quadraticCurveTo(520, 560, 470, 640); hj.quadraticCurveTo(300, 690, 130, 640); hj.quadraticCurveTo(80, 560, 100, 420); hj.bezierCurveTo(80, 260, 130, 90, 300, 90); hj.closePath();
+    celFill(c, hj, hijab, 380);
+  }
+  // face
+  const fx = 300 + look * 18;
+  const face = P(); face.ellipse(fx, 345, 132, 152, 0, 0, Math.PI * 2);
+  celFill(c, face, skin, fx + 70);
+  if (hair) { const hr = P(); hr.moveTo(fx - 150, 330); hr.bezierCurveTo(fx - 160, 140, fx + 160, 140, fx + 150, 330); hr.quadraticCurveTo(fx + 90, 230, fx - 20, 250); hr.quadraticCurveTo(fx - 90, 230, fx - 150, 330); hr.closePath(); c.fillStyle = hair; c.fill(hr); c.lineWidth = 11; c.strokeStyle = INK; c.stroke(hr); }
+  else { const rim = P(); rim.ellipse(fx, 345, 132, 152, 0, 0, Math.PI * 2); c.lineWidth = 16; c.strokeStyle = shade(hijab, 0.6); c.stroke(rim); c.lineWidth = 11; c.strokeStyle = INK; c.stroke(rim); }
+  // brows
+  const brow = (x, d) => { c.lineWidth = 14; c.strokeStyle = INK; c.beginPath();
+    const tilt = mood === 'angry' ? -18 * d : mood === 'worried' ? 16 * d : mood === 'shock' ? -6 * d : 0; const lift = mood === 'shock' ? -22 : 0;
+    c.moveTo(x - 34, 285 + lift - tilt); c.quadraticCurveTo(x, 270 + lift, x + 34, 285 + lift + tilt); c.stroke(); };
+  brow(fx - 55, -1); brow(fx + 55, 1);
+  // eyes
+  [[-55], [55]].forEach(([dx]) => { c.fillStyle = INK; c.beginPath(); c.ellipse(fx + dx + look * 6, 332, mood === 'shock' ? 18 : 15, mood === 'shock' ? 24 : 21, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(fx + dx + look * 6 + 5, 324, 5, 0, Math.PI * 2); c.fill(); });
+  // nose + blush + mouth
+  c.strokeStyle = shade(skin, 0.7); c.lineWidth = 6; c.beginPath(); c.moveTo(fx + 4, 360); c.quadraticCurveTo(fx + 14, 382, fx + 2, 390); c.stroke();
+  c.fillStyle = 'rgba(230,110,90,0.35)'; [[-80], [80]].forEach(([dx]) => { c.beginPath(); c.ellipse(fx + dx, 395, 26, 14, 0, 0, Math.PI * 2); c.fill(); });
+  c.strokeStyle = INK; c.lineWidth = 9; c.beginPath();
+  if (mood === 'smile') { c.moveTo(fx - 34, 425); c.quadraticCurveTo(fx, 452, fx + 34, 425); c.stroke(); }
+  else if (mood === 'shock') { c.fillStyle = '#7A2E2A'; c.beginPath(); c.ellipse(fx, 440, 20, 26, 0, 0, Math.PI * 2); c.fill(); c.stroke(); }
+  else if (mood === 'angry' || mood === 'worried') { c.moveTo(fx - 30, 444); c.quadraticCurveTo(fx, 428, fx + 30, 444); c.stroke(); }
+  else { c.moveTo(fx - 26, 436); c.lineTo(fx + 26, 436); c.stroke(); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1.7), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.05 }));
+  m.geometry.translate(0, 0.85, 0); m.castShadow = true;
+  m.customDepthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: t, alphaTest: 0.5 });
+  return m;
+}
+const fg = new THREE.Scene();      // characters: rendered sharp on top of the blurred set
+const addPuppet = (spec, x, z, s = 1, toScene = fg) => { const p = puppet(spec); p.position.set(x, 0, z); p.scale.setScalar(s); toScene.add(p); return p; };
+
+// ------------------------------------------------------------ shots
+const cam = new THREE.PerspectiveCamera(36, W / H, 0.05, 100);
+let blur = 7, cap = { text: 'kata', key: false };
+const tini = { hijab: '#7A4A2E', tunic: '#5CBBD9', skirt: '#E6DDC6', mood: 'smile' };
+if (SHOT === 'a') {
+  addPuppet({ ...tini, mood: 'smile', arm: 'point' }, -0.15, -0.3, 1.05);
+  cam.position.set(0.2, 1.5, 3.9); cam.lookAt(-0.08, 1.4, 0); cam.fov = 40; cam.updateProjectionMatrix();
+  cap = { text: 'Bu Tini', key: true }; blur = 4;
+} else if (SHOT === 'b') {
+  addPuppet({ ...tini, mood: 'shock' }, -0.3, -0.6, 1.0, scene);            // in the blurred background
+  cam.position.set(0.5, 1.12, 2.0); cam.lookAt(0.22, 1.0, 0.74);
+  [plate, j1, j2, ...WIRES].forEach((o) => fg.add(o)); fg.add(new THREE.HemisphereLight('#FFF1D6', '#5A4030', 1.2)); const s2 = sun.clone(); fg.add(s2);
+  cap = { text: 'kabel tipis', key: false }; blur = 9;
+} else {
+  addPuppet({ hijab: '#3FA7B8', tunic: '#E2733A', skirt: '#7A4A2E', mood: 'worried', look: 0.4 }, -0.55, 1.75, 1.0);
+  addPuppet({ hijab: '#E98A5E', tunic: '#4FA36A', skirt: '#E6DDC6', mood: 'worried', look: -0.4 }, 0.35, 1.8, 1.0);
+  cam.position.set(-0.1, 1.55, 5.6); cam.lookAt(-0.1, 1.3, 1.6);
+  cap = { text: 'pelanggan', key: true }; blur = 6;
+}
+// billboard: puppets face the camera (yaw only)
+[scene, fg].forEach((s) => s.traverse((o) => { if (o.geometry && o.geometry.type === 'PlaneGeometry' && o.material.map && o.material.transparent && o.material.alphaTest) { o.rotation.y = Math.atan2(cam.position.x - o.position.x, cam.position.z - o.position.z); } }));
+// puppets in fg still receive the set's light and shadow position cues: draw a soft contact shadow under them in the set
+fg.children.forEach((p) => { const sh = new THREE.Mesh(new THREE.CircleGeometry(0.32, 24), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.28, depthWrite: false })); sh.rotation.x = -Math.PI / 2; sh.position.set(p.position.x, 0.01, p.position.z); sh.scale.y = 0.45; scene.add(sh); });
+
+// ------------------------------------------------------------ render: set (blurred) -> puppets (sharp, occluded by the set via depth) -> grade -> caption
+R.setClearColor('#000', 1);
+R.render(scene, cam);
+const mid = document.createElement('canvas'); mid.width = W; mid.height = H; const mc = mid.getContext('2d', { willReadFrequently: true }); mc.drawImage(glc, 0, 0); mc.getImageData(0, 0, 1, 1);
+// cheap lens blur: shrink then enlarge twice (smooth), works without ctx.filter
+{ let src = mid; const f = 1 / Math.max(1, blur * 0.9);
+  for (const k of [f * 2, f]) { const sm = document.createElement('canvas'); sm.width = Math.max(8, W * k | 0); sm.height = Math.max(8, H * k | 0); const sc = sm.getContext('2d'); sc.imageSmoothingQuality = 'high'; sc.drawImage(src, 0, 0, sm.width, sm.height); src = sm; }
+  ctx.imageSmoothingQuality = 'high'; ctx.drawImage(src, 0, 0, W, H); }
+// puppets: render fg with the set as depth-only so the counter hides their legs
+R.autoClear = false; R.setClearColor('#000', 0); R.clear(true, true, true);
+const depthOnly = new THREE.MeshDepthMaterial(); depthOnly.colorWrite = false;
+const bg = scene.background; scene.background = null; scene.overrideMaterial = depthOnly; R.render(scene, cam); scene.overrideMaterial = null; scene.background = bg;
+R.render(fg, cam);
+// the sharp counter front sits in front of the puppets: re-render the near set objects sharp on top
+ctx.drawImage(glc, 0, 0);
+// warm grade + vignette + grain
+ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = 'rgba(255,170,90,0.35)'; ctx.fillRect(0, 0, W, H);
+ctx.globalCompositeOperation = 'source-over';
+const vg = ctx.createRadialGradient(W / 2, H * 0.45, H * 0.25, W / 2, H * 0.5, H * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(25,12,5,0.55)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+const id = ctx.getImageData(0, 0, W, H); const d = id.data; for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 14; d[i] += n; d[i + 1] += n; d[i + 2] += n; } ctx.putImageData(id, 0, 0);
+// caption
+ctx.font = '800 92px Display'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+ctx.lineWidth = 16; ctx.strokeStyle = 'rgba(20,14,10,0.95)'; ctx.strokeText(cap.text, W / 2, H * 0.7);
+ctx.fillStyle = cap.key ? '#FFD23F' : '#FFFFFF'; ctx.fillText(cap.text, W / 2, H * 0.7);
+window.READY = true;
+</script></body></html>
