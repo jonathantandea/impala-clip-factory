@@ -36,10 +36,14 @@ export const BANDA = {
   run: blob(129.683, -4.554, 1.6, 0.55, 0.35, 3), nailaka: blob(129.701, -4.537, 0.22, 0.16, 0, 5, 18),
   ai: blob(129.776, -4.527, 1.25, 1.0, 0.2, 7), neira: blob(129.897, -4.526, 0.8, 1.6, 0.15, 9),
   gunungapi: blob(129.871, -4.506, 1.4, 1.35, 0, 11), syahrir: blob(129.918, -4.478, 0.4, 0.3, 0, 13, 20),
+  onrust: blob(106.7356, -6.0353, 0.19, 0.15, 0.3, 21, 30), cipir: blob(106.7402, -6.0392, 0.13, 0.09, 0.2, 23, 24),
+  kelor: blob(106.7469, -6.0272, 0.08, 0.07, 0, 25, 20), bidadari: blob(106.7495, -6.0375, 0.16, 0.1, -0.3, 27, 24),
   besar: crescent([[129.872, -4.548], [129.90, -4.556], [129.93, -4.562], [129.96, -4.56], [129.985, -4.548], [130.0, -4.53]], 1.1, -4.55),
 };
 export const PLACES = { run: [129.683, -4.554], ai: [129.778, -4.526], neira: [129.899, -4.516], gunungapi: [129.882, -4.521], besar: [129.93, -4.556], banda: [129.86, -4.54], nailaka: [129.701, -4.537],
-  maluku: [129.0, -3.3], manhattan: [-73.97, 40.78], newyork: [-74.0, 40.71], london: [-0.12, 51.5], amsterdam: [4.9, 52.37], malaka: [102.25, 2.2], venesia: [12.33, 45.44], breda: [4.78, 51.59], grenada: [-61.68, 12.12], ambon: [128.18, -3.69] };
+  maluku: [129.0, -3.3], manhattan: [-73.97, 40.78], newyork: [-74.0, 40.71], london: [-0.12, 51.5], amsterdam: [4.9, 52.37], malaka: [102.25, 2.2], venesia: [12.33, 45.44], breda: [4.78, 51.59], grenada: [-61.68, 12.12], ambon: [128.18, -3.69],
+  onrust: [106.7356, -6.0353], cipir: [106.7402, -6.0392], kelor: [106.7469, -6.0272], bidadari: [106.7495, -6.0375], batavia: [106.81, -6.13], jakarta: [106.83, -6.17], priok: [106.88, -6.105],
+  mekkah: [39.83, 21.42], jeddah: [39.17, 21.54], rangoon: [96.16, 16.8], jatim: [112.6, -7.6], jateng: [110.4, -7.1], jabar: [107.6, -6.9], bandung: [107.61, -6.91], berlin: [13.4, 52.52], amsterdam2: [4.9, 52.37] };
 
 // ---------------------------------------------------------------- renderer
 export async function makeDocu(mainCtx, W, H, base = '/story/') {
@@ -49,8 +53,9 @@ export async function makeDocu(mainCtx, W, H, base = '/story/') {
   await Promise.all(fonts.map(async ([fam, f, w, st]) => { const ff = new FontFace(fam, `url(${base}fonts/${f})`, { weight: w, style: st }); await ff.load(); document.fonts.add(ff); }));
   const [w50, w10] = await Promise.all(['land-50m.json', 'land-10m.json'].map((f) => fetch(base + 'geo/' + f).then((r) => r.json())));
   const LAND50 = topoPolys(w50), LAND10 = topoPolys(w10);
-  let bandaPolys = BANDA;
-  try { const osm = await fetch(base + 'geo/banda.json').then((r) => (r.ok ? r.json() : null)); if (osm) bandaPolys = { nailaka: BANDA.nailaka, syahrir: BANDA.syahrir, ...Object.fromEntries(Object.entries(osm).map(([k, v]) => [k, withBox(v)])) }; } catch { /* keep approximations */ }
+  let bandaPolys = BANDA, JAKARTA = null;
+  try { const jk = await fetch(base + 'geo/jakarta.json').then((r) => (r.ok ? r.json() : null)); if (jk) JAKARTA = jk.map((r) => withBox(r)); } catch { /* optional */ }
+  try { const osm = await fetch(base + 'geo/banda.json').then((r) => (r.ok ? r.json() : null)); if (osm) bandaPolys = { nailaka: BANDA.nailaka, syahrir: BANDA.syahrir, onrust: BANDA.onrust, cipir: BANDA.cipir, kelor: BANDA.kelor, bidadari: BANDA.bidadari, ...Object.fromEntries(Object.entries(osm).map(([k, v]) => [k, withBox(v)])) }; } catch { /* keep approximations */ }
   const u = H / 1080, LAND = W > H;
   const { E, prog, clamp, lerp } = M;
   const ease = E.inOutCubic;
@@ -116,7 +121,8 @@ export async function makeDocu(mainCtx, W, H, base = '/story/') {
     const lonA = Math.floor(P.view[0] / stepDeg) * stepDeg; for (let lon = lonA; lon < P.view[1]; lon += stepDeg) { const [x] = P.f(lon, 0); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
     for (let lat = -80; lat <= 80; lat += stepDeg) { const [, y] = P.f(cam.lon, lat); if (y < -2 || y > H + 2) continue; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
     ctx.restore();
-    const polys = cam.zoom > 6 ? LAND10 : LAND50;
+    const nearJakarta = JAKARTA && cam.zoom > 450 && Math.abs(cam.lon - 106.78) < 0.5 && Math.abs(cam.lat + 6.08) < 0.35;
+    const polys = nearJakarta ? JAKARTA : cam.zoom > 6 ? LAND10 : LAND50;
     // shallow-water halo near islands when zoomed in
     if (cam.zoom > 150) drawPolys(Object.values(bandaPolys), P, null, 'rgba(111,163,199,0.18)', 18 * u, 0);
     drawPolys(polys, P, TOK.land, TOK.gold, Math.max(0.8, 1.5 * u), 6 * u);
@@ -192,6 +198,10 @@ export async function makeDocu(mainCtx, W, H, base = '/story/') {
     wabah(s) { ctx.beginPath(); ctx.arc(0, 0, 22, 0, 7); ctx.stroke(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; ctx.beginPath(); ctx.moveTo(Math.cos(a) * 22, Math.sin(a) * 22); ctx.lineTo(Math.cos(a) * 34, Math.sin(a) * 34); ctx.stroke(); ctx.beginPath(); ctx.arc(Math.cos(a) * 37, Math.sin(a) * 37, 4, 0, 7); ctx.fill(); } },
     timbangan(s) { ctx.beginPath(); ctx.moveTo(0, -34); ctx.lineTo(0, 30); ctx.moveTo(-20, 30); ctx.lineTo(20, 30); ctx.moveTo(-40, -22); ctx.lineTo(40, -22); ctx.stroke(); [-1, 1].forEach((d) => { ctx.beginPath(); ctx.moveTo(d * 40, -22); ctx.lineTo(d * 52, 4); ctx.lineTo(d * 28, 4); ctx.closePath(); ctx.stroke(); }); ctx.fillStyle = TOK.gold; ctx.fillRect(28, -6, 24, 8); ctx.fillStyle = '#8A5A2A'; ctx.beginPath(); ctx.arc(-40, -2, 7, 0, 7); ctx.fill(); },
     orang(s) { ctx.beginPath(); ctx.arc(0, -16, 9, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(-12, 22); ctx.lineTo(-10, -2); ctx.quadraticCurveTo(0, -8, 10, -2); ctx.lineTo(12, 22); ctx.closePath(); ctx.fill(); },
+    tikus(s) { ctx.beginPath(); ctx.ellipse(0, 6, 34, 20, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.ellipse(32, 0, 16, 12, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.arc(30, -12, 7, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(-34, 8); ctx.quadraticCurveTo(-60, 20, -54, -12); ctx.stroke(); },
+    kamera(s) { ctx.strokeRect(-36, -18, 72, 46); ctx.beginPath(); ctx.arc(0, 5, 14, 0, 7); ctx.stroke(); ctx.strokeRect(-14, -28, 22, 10); },
+    surat(s) { ctx.strokeRect(-26, -34, 52, 68); for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-16, -18 + i * 12); ctx.lineTo(16, -18 + i * 12); ctx.stroke(); } ctx.beginPath(); ctx.arc(12, 24, 7, 0, 7); ctx.fill(); },
+    kapal(s) { ctx.beginPath(); ctx.moveTo(-40, 6); ctx.lineTo(40, 6); ctx.lineTo(30, 22); ctx.lineTo(-32, 22); ctx.closePath(); ctx.stroke(); ctx.strokeRect(-20, -10, 30, 16); ctx.strokeRect(-4, -30, 10, 20); },
     benteng(s) { ctx.strokeRect(-36, -10, 72, 40); for (let i = -36; i < 36; i += 18) ctx.strokeRect(i, -22, 10, 12); ctx.beginPath(); ctx.arc(0, 30, 10, Math.PI, 0); ctx.stroke(); },
   };
   function icon(name, x, y, s, a, col = TOK.parchment) { if (a <= 0) return; ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 3.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; (ICON[name] || ICON.orang)(s); ctx.restore(); }
@@ -326,6 +336,7 @@ export async function makeDocu(mainCtx, W, H, base = '/story/') {
     path(); ctx.clip();
     if (kind === 'en') { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-5, -5, w + 10, h + 10); ctx.fillStyle = '#C8102E'; ctx.fillRect(w * 0.4, -5, w * 0.2, h + 10); ctx.fillRect(-5, h * 0.38, w + 10, h * 0.24); }
     else if (kind === 'nl') { FLAG.nl.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(-5, -5 + i * h / 3, w + 10, h / 3 + 6); }); }
+    else if (kind === 'jp') { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-5, -5, w + 10, h + 10); ctx.fillStyle = '#BC002D'; ctx.beginPath(); ctx.arc(w / 2, h / 2, h * 0.3, 0, 7); ctx.fill(); }
     else if (kind === 'pt') { ctx.fillStyle = FLAG.pt[0]; ctx.fillRect(-5, -5, w * 0.4, h + 10); ctx.fillStyle = FLAG.pt[1]; ctx.fillRect(w * 0.4, -5, w, h + 10); }
     else { ctx.fillStyle = kind || TOK.parchment; ctx.fillRect(-5, -5, w + 10, h + 10); }
     ctx.restore();
@@ -458,8 +469,77 @@ export async function makeDocu(mainCtx, W, H, base = '/story/') {
     ctx.globalAlpha = 1;
     if (s.label) { const e = enter(t, api.span[0] + 0.3); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.17 + e.dy, font(SERIF, 600, 46 * u, true), TOK.parchment); ctx.restore(); }
   }
+  // ---- Onrust additions: steamship, barracks, graves, prison bars, ruins
+  function steamer(x, y, s, t, phase = 0) {
+    ctx.save(); ctx.translate(x, y + Math.sin(t * 1.2 + phase) * 4 * s); ctx.rotate(Math.sin(t * 0.9 + phase) * 0.015); ctx.scale(s, s);
+    ctx.fillStyle = '#20262C'; ctx.strokeStyle = TOK.gold; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-230, -20); ctx.lineTo(230, -20); ctx.lineTo(205, 40); ctx.lineTo(-200, 40); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#E8DDC4'; ctx.fillRect(-150, -70, 260, 50); ctx.strokeRect(-150, -70, 260, 50);
+    ctx.fillStyle = '#20262C'; for (let i = 0; i < 9; i++) ctx.fillRect(-138 + i * 28, -58, 14, 14);
+    ctx.fillStyle = '#2A1E16'; ctx.fillRect(-30, -150, 46, 80); ctx.fillStyle = TOK.mace; ctx.fillRect(-30, -150, 46, 14);
+    for (let i = 0; i < 6; i++) { const k = ((t * 0.4 + i / 6) % 1); ctx.fillStyle = `rgba(200,200,200,${0.35 * (1 - k)})`; ctx.beginPath(); ctx.arc(-8 - k * 160, -165 - k * 90, 18 + k * 40, 0, 7); ctx.fill(); }
+    ctx.strokeStyle = 'rgba(201,164,92,0.6)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-200, -20); ctx.lineTo(-200, -130); ctx.moveTo(180, -20); ctx.lineTo(180, -120); ctx.stroke();
+    ctx.restore();
+  }
+  function steamScene(s, t, api) {
+    const hz = H * 0.62, lt = t - api.span[0], len = Math.max(3, api.span[1] - api.span[0]);
+    if (s.coast) { ctx.fillStyle = '#1A2420'; ctx.beginPath(); ctx.moveTo(W * 0.55, hz + 4); for (let x = W * 0.55; x <= W; x += 30) ctx.lineTo(x, hz - 30 * u - Math.sin(x * 0.01) * 14 * u); ctx.lineTo(W, hz + 4); ctx.fill(); }
+    const k = E.inOutSine(clamp(lt / (len * 0.95))); const x = lerp(s.fromX ?? -0.2, s.toX ?? 0.45, k) * W;
+    steamer(x, hz + 20 * u, (s.scale || 1) * u, t);
+    sea(t, hz + 10 * u, 0.8);
+    if (s.label) { const e = enter(t, api.span[0] + 0.5); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.16 + e.dy, font(SERIF, 700, 72 * u), TOK.parchment); if (s.labelSub) txt(s.labelSub, W / 2, H * 0.16 + 66 * u + e.dy, font(SANS, 600, 24 * u), TOK.gold, 'center', 7 * u); ctx.restore(); }
+  }
+  function barakScene(s, t, api) {
+    const lt = t - api.span[0], n = s.n || 35, cols = 7, bw = 150 * u, bh = 64 * u, gx = W / 2 - (cols * bw * 1.25) / 2, gy = H * 0.3;
+    for (let i = 0; i < n; i++) { const r = Math.floor(i / cols), c = i % cols, k = E.outCubic(clamp((lt - 0.3 - i * 0.06) / 0.5)); if (k <= 0) continue;
+      const x = gx + c * bw * 1.25, y = gy + r * bh * 1.6; ctx.save(); ctx.globalAlpha = k;
+      ctx.fillStyle = '#2B343C'; ctx.fillRect(x, y + 18 * u, bw, bh - 18 * u); ctx.fillStyle = '#6B4A30'; ctx.beginPath(); ctx.moveTo(x - 8 * u, y + 20 * u); ctx.lineTo(x + bw / 2, y); ctx.lineTo(x + bw + 8 * u, y + 20 * u); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(236,226,204,0.5)'; for (let w = 0; w < 5; w++) ctx.fillRect(x + 14 * u + w * 27 * u, y + 32 * u, 12 * u, 14 * u); ctx.restore(); }
+    if (s.counter) { const k = E.outCubic(clamp((lt - 0.4) / Math.max(1, n * 0.06))); txt(Math.round(n * k).toString(), W * 0.88, H * 0.5, font(SERIF, 700, 120 * u), TOK.parchment, 'right'); txt('BARAK', W * 0.88, H * 0.5 + 60 * u, font(SANS, 600, 24 * u), TOK.gold, 'right', 7 * u); }
+    if (s.label) { const e = enter(t, api.span[0] + 0.3); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.16 + e.dy, font(SERIF, 700, 64 * u), TOK.parchment); if (s.labelSub) txt(s.labelSub, W / 2, H * 0.16 + 60 * u + e.dy, font(SANS, 600, 24 * u), TOK.gold, 'center', 7 * u); ctx.restore(); }
+  }
+  function makamScene(s, t, api) {          // simple grave markers, some without names (respectful, no imagery of death)
+    const lt = t - api.span[0], rows = 3, cols = 9; const gy = H * 0.5;
+    ctx.fillStyle = '#18221E'; ctx.fillRect(0, gy + 150 * u, W, H); 
+    for (let r = rows - 1; r >= 0; r--) for (let c = 0; c < cols; c++) {
+      const i = r * cols + c, k = E.outCubic(clamp((lt - 0.3 - i * 0.05) / 0.6)); if (k <= 0) continue;
+      const sc = 1 - r * 0.18, x = W / 2 + (c - (cols - 1) / 2) * 150 * u * sc, y = gy + r * -70 * u + 120 * u, w = 54 * u * sc, h = 90 * u * sc;
+      const named = s.dutch ? M.hash01(i, 4) < 0.5 : M.hash01(i, 7) < 0.25;
+      ctx.save(); ctx.globalAlpha = k * (1 - r * 0.2);
+      ctx.fillStyle = named ? '#8A8478' : '#4A4A44'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - h, w, h, [w / 2, w / 2, 4 * u, 4 * u]); ctx.fill();
+      if (named) { ctx.fillStyle = 'rgba(20,20,20,0.6)'; for (let l = 0; l < 3; l++) ctx.fillRect(x - w * 0.3, y - h * 0.7 + l * h * 0.15, w * 0.6, 3 * u * sc); }
+      ctx.restore();
+    }
+    for (let i = 0; i < 4; i++) { const tx = W * (0.12 + i * 0.26), th = 300 * u; ctx.fillStyle = '#0F1714'; ctx.fillRect(tx - 10 * u, gy + 150 * u - th, 20 * u, th); ctx.beginPath(); ctx.arc(tx, gy + 150 * u - th, 120 * u, 0, 7); ctx.fill(); }
+    if (s.label) { const e = enter(t, api.span[0] + 0.4); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.16 + e.dy, font(SERIF, 600, 54 * u, true), TOK.parchment); if (s.labelSub) txt(s.labelSub, W / 2, H * 0.16 + 60 * u + e.dy, font(SANS, 600, 22 * u), TOK.gold, 'center', 7 * u); ctx.restore(); }
+  }
+  function barsScene(s, t, api) {          // prison: text behind vertical bars that slide shut
+    const lt = t - api.span[0]; const e = enter(t, api.span[0] + 0.2);
+    ctx.save(); ctx.globalAlpha = e.a; txt(s.big || '', W / 2, H * 0.45 + e.dy, font(SERIF, 700, (s.size || 120) * u), TOK.parchment);
+    if (s.small) txt(s.small, W / 2, H * 0.45 + 110 * u + e.dy, font(SANS, 800, 46 * u), TOK.mace, 'center', 6 * u); ctx.restore();
+    const k = E.outCubic(clamp((lt - (s.barsAt ?? 0.8)) / 0.9)); const n = 11;
+    for (let i = 0; i < n; i++) { const x = W * (0.06 + 0.88 * i / (n - 1)); const yTop = lerp(-H, 0, k);
+      const g = ctx.createLinearGradient(x - 14 * u, 0, x + 14 * u, 0); g.addColorStop(0, '#2A2F35'); g.addColorStop(0.5, '#6A7078'); g.addColorStop(1, '#22272C');
+      ctx.fillStyle = g; ctx.fillRect(x - 12 * u, yTop, 24 * u, H); }
+    ctx.fillStyle = '#3A4048'; [0.12, 0.88].forEach((f) => ctx.fillRect(0, lerp(-H, 0, k) + H * f, W, 22 * u));
+    // keep the words readable in front of the bars
+    if (k > 0) { ctx.save(); ctx.globalAlpha = e.a * k; ctx.font = font(SERIF, 700, (s.size || 120) * u); const tw = ctx.measureText(s.big || '').width;
+      ctx.fillStyle = 'rgba(12,17,23,0.82)'; ctx.beginPath(); ctx.roundRect(W / 2 - tw / 2 - 50 * u, H * 0.45 - (s.size || 120) * 0.75 * u, tw + 100 * u, (s.size || 120) * u * 1.05 + (s.small ? 110 * u : 0), 16 * u); ctx.fill();
+      txt(s.big || '', W / 2, H * 0.45, font(SERIF, 700, (s.size || 120) * u), TOK.parchment);
+      if (s.small) txt(s.small, W / 2, H * 0.45 + 110 * u, font(SANS, 800, 46 * u), TOK.mace, 'center', 6 * u); ctx.restore(); }
+  }
+  function ruinsScene(s, t, api) {         // brick foundations overgrown with roots
+    const lt = t - api.span[0]; ctx.fillStyle = '#16201B'; ctx.fillRect(0, H * 0.35, W, H);
+    const rects = [[0.12, 0.45, 0.22, 0.2], [0.4, 0.42, 0.2, 0.26], [0.66, 0.5, 0.2, 0.18], [0.24, 0.72, 0.28, 0.12], [0.58, 0.74, 0.24, 0.1]];
+    rects.forEach(([x, y, w, h], i) => { const k = clamp((lt - 0.3 - i * 0.3) / 1.2); if (k <= 0) return;
+      ctx.save(); ctx.globalAlpha = k; ctx.strokeStyle = '#9A5A3C'; ctx.lineWidth = 10 * u; ctx.setLineDash([46 * u, 12 * u, 20 * u, 30 * u]); ctx.strokeRect(W * x, H * y, W * w, H * h); ctx.restore(); });
+    ctx.strokeStyle = 'rgba(70,110,60,0.7)'; ctx.lineCap = 'round';
+    for (let i = 0; i < 9; i++) { const k = clamp((lt - 1 - i * 0.2) / 2); if (k <= 0) continue; ctx.lineWidth = (6 + M.hash01(i, 3) * 8) * u; ctx.beginPath(); let x = W * M.hash01(i, 5), y = H * 0.35;
+      ctx.moveTo(x, y); for (let j = 0; j < 12 * k; j++) { x += (M.hash01(i * 13 + j, 7) - 0.5) * 80 * u; y += 40 * u; ctx.lineTo(x, y); } ctx.stroke(); }
+    if (s.label) { const e = enter(t, api.span[0] + 0.4); ctx.save(); ctx.globalAlpha = e.a; txt(s.label, W / 2, H * 0.16 + e.dy, font(SERIF, 700, 64 * u), TOK.parchment); if (s.labelSub) txt(s.labelSub, W / 2, H * 0.16 + 60 * u + e.dy, font(SANS, 600, 22 * u), TOK.gold, 'center', 7 * u); ctx.restore(); }
+  }
   const KINDS = { map: mapScene, title: titleCard, number: bigNumber, compare, statement, icons: iconRow, nutmeg: nutmegScene, sign: streetSign, oldmap: oldMap, quiet, end: endScreen,
-    ship: shipScene, fort: fortScene, kebun: kebunScene, portrait: silhouette, calendar, scroll, chain, flag: flagSwap, dots: dotsScene };
+    ship: shipScene, steam: steamScene, barak: barakScene, makam: makamScene, bars: barsScene, ruins: ruinsScene, fort: fortScene, kebun: kebunScene, portrait: silhouette, calendar, scroll, chain, flag: flagSwap, dots: dotsScene };
   const AMBIENT = new Set(['title', 'number', 'compare', 'statement', 'icons', 'nutmeg', 'quiet', 'chain', 'calendar', 'portrait', 'scroll', 'dots']);
 
   return function docu(p, t, s, api, target) {
